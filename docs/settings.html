@@ -227,14 +227,14 @@ footer a { color: var(--accent); }
     <ol class="steps">
       <li>下のボタンで GitHub の Actions のページ（Set accent color）を開く</li>
       <li>右上の「Run workflow」を押し、上の 2 つの値を入力欄に貼る（accent_light が空なら空のまま）</li>
-      <li>緑の「Run workflow」を押す。1〜2 分でサイトに反映されます</li>
+      <li>緑の「Run workflow」を押す。アイコン・OGP 画像も同じ色で作り直すので、反映まで 3〜5 分ほどかかります（画像はそのままでよければ「アイコン・OGP 画像も…」のチェックを外すと 1〜2 分）</li>
     </ol>
     <a class="btn primary" id="open-actions" target="_blank" rel="noopener"
        href="https://github.com/repo/sample/actions/workflows/set-accent.yml"
        data-memo-site-href="https://github.com/{repository}/actions/workflows/set-accent.yml">GitHub で固定する ↗</a>
     <details>
       <summary>ファイルを直接書き換える場合</summary>
-      <p style="margin-top:8px">memo.config.json の branding をこの内容にして push すると、Actions の build が全ページに反映します（アイコン・OGP 画像の色は変わりません。変えるなら手元で branding/render.py）。</p>
+      <p style="margin-top:8px">memo.config.json の branding をこの内容にして push すると、Actions の build が全ページに反映します（アイコン・OGP 画像の色は変わりません。揃えるなら手元で branding/render.py）。</p>
       <pre id="out-json"></pre>
     </details>
   </section>

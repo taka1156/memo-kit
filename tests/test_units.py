@@ -43,6 +43,19 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(config.pages_url("alice/alice.github.io"), "https://alice.github.io/")
         self.assertEqual(config.pages_url(""), "")
 
+    def test_branding_icon_style(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "memo.config.json"
+            f.write_text("{}", encoding="utf-8")
+            self.assertEqual(config.load_config(f)["branding"]["icon"], "mark")
+            f.write_text('{"branding": {"icon": "lines"}}', encoding="utf-8")
+            self.assertEqual(config.load_config(f)["branding"]["icon"], "lines")
+            f.write_text('{"branding": {"icon": "bars"}}', encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                config.load_config(f)
+
     def test_set_accent_rewrites_only_accent(self):
         import tempfile
         from pathlib import Path

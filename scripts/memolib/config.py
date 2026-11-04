@@ -39,18 +39,20 @@ BRANDING_DEFAULTS: dict = {
     "tagline": "",      # OGP 画像の説明文（空なら description）
     "url": "",          # OGP 画像に小さく出す URL（空なら公開 URL のホスト名とパス）
     "mark": "",         # アイコンの文字（1〜2 文字。空なら title の先頭 1 文字）
+    "icon": "mark",     # アイコンの絵柄。mark（紙に mark の文字）か lines（文字なし。小さいアイコンは横線 3 本）
     "accent": "#00d4ff",  # アクセント色（ダークモードのページと dark の画像）。#rgb か #rrggbb
     "accent_light": "",   # ライトモードのページと light の画像のアクセント色（空なら accent を白地で読める濃さまで暗くする）
     "theme": "dark",    # 画像のテーマ。dark か light
 }
 THEMES = ("dark", "light")
+ICON_STYLES = ("mark", "lines")
 HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$")
 
 
 # 文字列の項目と、空を許さないもの
 STRING_KEYS = ("site_name", "description", "llms_description", "repository", "branch")
 REQUIRED_STRINGS = ("site_name", "branch")
-BRANDING_STRING_KEYS = ("title", "tagline", "url", "mark", "accent", "accent_light", "theme")
+BRANDING_STRING_KEYS = ("title", "tagline", "url", "mark", "icon", "accent", "accent_light", "theme")
 
 
 def _type_name(value) -> str:
@@ -111,6 +113,8 @@ def load_config(path: Path = CONFIG_FILE) -> dict:
             fail(f"branding.{key} は #rgb か #rrggbb で書いてください: {value!r}")
     if brand["theme"] not in THEMES:
         fail(f"branding.theme は {' / '.join(THEMES)} のどちらかです: {brand['theme']!r}")
+    if brand["icon"] not in ICON_STYLES:
+        fail(f"branding.icon は {' / '.join(ICON_STYLES)} のどちらかです: {brand['icon']!r}")
     return {**DEFAULTS, **data, "branding": brand}
 
 

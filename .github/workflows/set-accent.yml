@@ -3,7 +3,8 @@ name: Set accent color
 # 設定ページ（docs/settings.html）で選んだアクセント色をサイト全体に固定する。
 # Actions の画面の「Run workflow」から色を入れて実行すると、memo.config.json の branding.accent・accent_light を
 # 書き換え、build で全ページを作り直してコミット・push する（サーバーなしで「設定を保存する」代わり）。
-# 実行できるのはリポジトリに書き込み権限がある人だけ。アイコン・OGP 画像は作り直さない（手元で branding/render.py）。
+# 実行できるのはリポジトリに書き込み権限がある人だけ。
+# images にチェックがあれば（既定）、アイコン・OGP 画像も同じ色で作り直す（branding/render.py。ブラウザとフォントを入れるので数分かかる）。
 on:
   workflow_dispatch:
     inputs:
@@ -16,6 +17,11 @@ on:
         required: false
         default: ""
         type: string
+      images:
+        description: "アイコン・OGP 画像も同じ色で作り直す（数分かかる）"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -39,6 +45,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      # 画像を作り直すときだけ: render.py に必要なもの（playwright と chromium、Pillow、フォント）を入れる
+      - name: Install image tools
+        if: inputs.images
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk fonts-dejavu-core
+          pip install -q playwright pillow
+          python3 -m playwright install --with-deps chromium
+
       - name: Set accent, build, commit and push
         # 入力はシェルに直接埋め込まず、環境変数で渡す（値に記号が入っても安全に扱うため）。
         # 色の書き方が正しくなければ memo.py accent がどこが違うかを示して止まる（何もコミットしない）。
@@ -46,12 +61,16 @@ jobs:
         env:
           ACCENT: ${{ inputs.accent }}
           ACCENT_LIGHT: ${{ inputs.accent_light }}
+          IMAGES: ${{ inputs.images }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           branch="${GITHUB_REF_NAME}"
           for attempt in 1 2 3; do
             python3 scripts/memo.py accent "$ACCENT" "$ACCENT_LIGHT"
+            if [ "$IMAGES" = "true" ]; then
+              python3 branding/render.py   # og.png が変わると、続く build が og:image の ?v= を更新する
+            fi
             python3 scripts/memo.py build
             if [ -z "$(git status --porcelain -- memo.config.json docs entry-skill)" ]; then
               echo "すでにこの色です"

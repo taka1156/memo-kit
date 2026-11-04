@@ -355,14 +355,15 @@ flowchart LR
 | `tagline` | OGP 画像の説明文（2 行まで） | `description` |
 | `url` | OGP 画像に小さく出す URL | 公開 URL のホスト名とパス |
 | `mark` | アイコンの文字（1〜2 文字がおすすめ） | `title` の先頭 1 文字 |
+| `icon` | アイコンの絵柄。`mark`（紙に `mark` の文字）か `lines`（文字なし。小さいアイコンは横線 3 本） | `mark` |
 | `accent` | ダークモードのページの `--accent`（見出し・強調・リンク）と、`theme: dark` の画像の色（題字・余白線・ペン）。`#rgb` か `#rrggbb` | 空にはできない（既定 `#00d4ff`） |
 | `accent_light` | ライトモードのページの `--accent` と、`theme: light` の画像の色 | `accent` を白地とのコントラスト比 4.5 以上になるまで暗くした色 |
 | `theme` | 画像のテーマ。`dark` か `light`（ページはライト・ダークの両方に自動で対応） | `dark` |
 
 - 書き間違い（JSON の書式、文字列であるべき項目に数値、`site_name`・`branch` が空、`utc_offset_hours` が -24〜24 の外など）は、項目名と直し方を示して止まります（traceback は出しません）。
-- 書かなかった項目は既定値（`scripts/memolib/config.py` の `DEFAULTS`・`BRANDING_DEFAULTS`）になります。知らない項目や、`accent`・`accent_light`・`theme` のおかしな値があるとエラーで止まります（綴りの間違いに気づけるように）。
+- 書かなかった項目は既定値（`scripts/memolib/config.py` の `DEFAULTS`・`BRANDING_DEFAULTS`）になります。知らない項目や、`accent`・`accent_light`・`icon`・`theme` のおかしな値があるとエラーで止まります（綴りの間違いに気づけるように）。
 - アクセント色は `build` が全ページの `memo:head` に `<style id="memo-accent">` として入れます。各ページの `:root` の `--accent` より強い `html:root` で書くので、ページ側の値（テンプレートの既定値）は上書きされます。
-- `branding` を変えても `build` だけでは画像は変わりません。`python3 branding/render.py` で作り直します（[日付と URL の決まり方](#日付と-url-の決まり方) の「URL」）。
+- `branding` を変えても `build` だけでは画像は変わりません。`python3 branding/render.py` で作り直します（設定ページから `Set accent color` で固定したときは、Actions が作り直します）（[日付と URL の決まり方](#日付と-url-の決まり方) の「URL」）。
 - `python3 scripts/memo.py config` で今の設定（と公開 URL）を表示できます。
 
 **トップ・クイズ・設定のページへの差し込み**
@@ -384,7 +385,7 @@ GitHub Pages は表示するだけなので、ページから設定ファイル�
 ```mermaid
 flowchart LR
   sp["settings.html<br/>候補・自分で選ぶ<br/>見え方とコントラスト比"] -->|"「GitHub で固定する」<br/>色の値をコピー"| run["Actions の画面<br/>Run workflow に色を貼る"]
-  run --> wf["Set accent color<br/>memo.py accent → build"]
+  run --> wf["Set accent color<br/>memo.py accent → render.py → build"]
   wf -->|"commit・push"| repo["memo.config.json と全ページ"]
   repo -->|Pages| sp
 ```
@@ -392,8 +393,8 @@ flowchart LR
 - 設定ページで色を選ぶと、そのページの色だけがその場で変わります（ほかのページは固定するまで変わりません）。ライト用は「自動」にすると、`build` と同じ計算（白地とのコントラスト比 4.5 以上になるまで暗くする）で決まります。
 - 「GitHub で固定する」は、そのリポジトリの `Set accent color` の画面を開くだけです。色の値は自動では入らないので、ページに出た `accent`・`accent_light` をコピーして「Run workflow」の入力欄に貼ります（ライト用を自動にしたときは空のまま）。
 - 実行できるのは、リポジトリに書き込み権限がある人だけです。ページは公開されていますが、見た人が色を変えることはできません。
-- ワークフローは `python3 scripts/memo.py accent COLOR [LIGHT]` で `memo.config.json` の `branding.accent`・`accent_light` だけを書き換え（ほかの項目と並び順はそのまま）、`build` して `Set accent color: …` としてコミット・push します。色の書き方が正しくなければ、何もコミットせずに止まります。
-- アイコン・OGP 画像は作り直しません（Actions では `render.py` を動かさない）。画像の色も揃えたいときは手元で `python3 branding/render.py`。
+- ワークフローは `python3 scripts/memo.py accent COLOR [LIGHT]` で `memo.config.json` の `branding.accent`・`accent_light` だけを書き換え（ほかの項目と並び順はそのまま）、必要なら画像を作り直し、`build` して `Set accent color: …` としてコミット・push します。色の書き方が正しくなければ、何もコミットせずに止まります。
+- 「アイコン・OGP 画像も同じ色で作り直す」（`images`。既定でオン）のときは、Actions に playwright・chromium・Pillow・フォントを入れて `branding/render.py` も動かします。そのぶん 3〜5 分かかります。画像はそのままでよければチェックを外します（1〜2 分）。
 - 手元や Claude からは、`python3 scripts/memo.py accent '#3ddc97' '#0f7a50'` → `build` で同じことができます。
 
 **アプリ側の入口スキル**
@@ -421,7 +422,7 @@ flowchart LR
 - 公開 URL は `docs/CNAME` の独自ドメインから決まります（無ければ `memo.config.json` の `repository` から GitHub Pages の URL `https://OWNER.github.io/REPO/` を作ります）。`og:url`・`og:image` の絶対 URL にも使います。
 - `og:image` には `og.png` の中身から作った短いハッシュ（`?v=…`）を付けます。画像を差し替えると URL が変わり、SNS 側の画像キャッシュが古いまま残るのを防げます。
 - アイコンと OGP 画像の生成元は `branding/`（`og.html`・`icon.html`・`leaf.css`）で、`python3 branding/render.py` で `docs/assets/` に書き出します（`branding/` は公開されません）。文字と色は `memo.config.json`（`site_name`・`description`・公開 URL と `branding`）から差し込むので、HTML を直接書き換える必要はありません。
-- `render.py` だけは標準ライブラリでは動きません（playwright と chromium、Pillow、フォント Noto Sans CJK JP / DejaVu Sans Mono が必要。README の「必要なもの」）。Actions では動かさないので、設定を変えたら手元で実行し、できた画像をコミットします。`og.png` が変わると、次の `build` で `og:image` の `?v=` が更新されます。
+- `render.py` だけは標準ライブラリでは動きません（playwright と chromium、Pillow、フォント Noto Sans CJK JP / DejaVu Sans Mono が必要。README の「必要なもの」）。Actions では `Set accent color` だけが動かします。それ以外の設定（サイト名・`branding` の文字など）を変えたら手元で実行し、できた画像をコミットします。`og.png` が変わると、次の `build` で `og:image` の `?v=` が更新されます。
 
 ## 表示の確認とプレビュー
 
@@ -455,7 +456,7 @@ python3 scripts/memo.py preview 下書き.html -o /tmp/NAME.html
 
 ローカルで `build` してから push していれば、Actions 側では差分が出ません。
 
-`.github/workflows/set-accent.yml`（`Set accent color`）は手動で実行するもので、入力したアクセント色を `memo.config.json` に書いて `build` し、コミット・push します（[設定ページからアクセント色を変える](#設定ページからアクセント色を変える)）。`Build MEMO index` と同じ `concurrency` のグループで動くので、両方が同時に書き込むことはありません。デフォルトブランチ以外を選んで実行したときは何もしません。
+`.github/workflows/set-accent.yml`（`Set accent color`）は手動で実行するもので、入力したアクセント色を `memo.config.json` に書き、アイコン・OGP 画像を作り直して（`images` がオンのとき）`build` し、コミット・push します（[設定ページからアクセント色を変える](#設定ページからアクセント色を変える)）。`Build MEMO index` と同じ `concurrency` のグループで動くので、両方が同時に書き込むことはありません。デフォルトブランチ以外を選んで実行したときは何もしません。
 
 もう 1 つの `.github/workflows/test.yml`（`Test memo.py`）は、`scripts/`・`tests/`・クイズの共通ファイル・トップ・クイズ・設定のページ・`memo.config.json`・テンプレートが変わったとき（どのブランチでも、PR も含む）にテストを流します。リポジトリは書き換えません。
 
@@ -532,7 +533,7 @@ python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保�
 | 確認クイズの見た目・動き | `docs/assets/memo-quiz.css`・`.js` | 何もしなくてよい（全メモに反映） |
 | クイズ表示の枠（HTML）・入る場所 | `memolib/blocks.py` の `QUIZ_BLOCK`・`apply_quiz` | `build`（全メモが書き換わる） |
 | アイコン・OGP のタグ | `memolib/blocks.py` の `head_block` | `build`（全ページが書き換わる） |
-| サイトのアクセント色 | 設定ページ（`docs/settings.html`）から Actions の `Set accent color`、または `memo.py accent` | Actions なら何もしなくてよい。手元なら `build`（全ページが書き換わる。画像も揃えるなら `python3 branding/render.py`） |
+| サイトのアクセント色 | 設定ページ（`docs/settings.html`）から Actions の `Set accent color`、または `memo.py accent` | Actions なら何もしなくてよい（画像も作り直す）。手元なら `build`（全ページが書き換わる。画像も揃えるなら `python3 branding/render.py`） |
 | アイコン・OGP 画像の文字・色 | `memo.config.json`（`site_name`・`description`・`branding`） | `python3 branding/render.py` → `build` |
 | アイコン・OGP 画像のデザイン | `branding/`（`og.html`・`icon.html`・`leaf.css`、テーマの色は `render.py` の `THEMES`） | `python3 branding/render.py` → `build` |
 | トップ・クイズ・設定ページの見た目 | `docs/index.html`・`docs/quiz.html`・`docs/settings.html` | 何もしなくてよい（サイト名などを入れる場所を増やしたら `build`） |
