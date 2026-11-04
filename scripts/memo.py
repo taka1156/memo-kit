@@ -11,14 +11,15 @@
   python3 scripts/memo.py build [--check]
   python3 scripts/memo.py list
   python3 scripts/memo.py config [KEY]                memo.config.json の設定を表示（例: config branch）
-  python3 scripts/memo.py preview MEMO|index|quiz|FILE [-o OUT]   会話内プレビュー用に 1 枚へ埋め込んだ HTML を作る
+  python3 scripts/memo.py accent COLOR [LIGHT]        アクセント色を memo.config.json に書く（LIGHT を省くと自動。続けて build）
+  python3 scripts/memo.py preview MEMO|index|quiz|settings|FILE [-o OUT]   会話内プレビュー用に 1 枚へ埋め込んだ HTML を作る
 
 MEMO / NAME は「docker」「docker.html」「docs/docker.html」のどれでもよい
 （既存のファイルパスを渡した場合はそのファイルを対象にする）。
 置き場所（docs/）やテンプレートの場所はこのスクリプトだけが知っている。
 サイト名・リポジトリ・ブランチ・タイムゾーンなど、サイトごとの値はリポジトリ直下の memo.config.json に書く。
 
-メモ = docs/ 直下の *.html（index.html・quiz.html 以外）。docs/ が GitHub Pages で公開される。
+メモ = docs/ 直下の *.html（index.html・quiz.html・settings.html 以外）。docs/ が GitHub Pages で公開される。
 一覧情報は各メモの <head> 内の次のタグから読み取る:
   <title>                         タイトル（memo:title があればそちら優先）
   <meta name="description">       説明
@@ -46,7 +47,7 @@ from pathlib import Path
 
 from memolib.blocks import apply_generated
 from memolib.config import (CONFIG, CONFIG_FILE, DOCS, ENTRY_SKILL, ROOT, SITE_URL, SPECIAL_NAMES, SPECIAL_PAGES,
-                            TEMPLATE, read_text, repository_warning, today)
+                            TEMPLATE, accents, read_text, repository_warning, set_accent, today)
 from memolib.entry import entry_skill
 from memolib.lint import lint_text
 from memolib.markdown import MD_DIR, build_markdown
@@ -128,7 +129,7 @@ def cmd_build(args) -> int:
             outdated.append(path.name)
             if not args.check:
                 path.write_text(body, encoding="utf-8")
-    for page in SPECIAL_PAGES:  # トップ・クイズページは head（アイコン・OGP）とサイト設定だけ更新する
+    for page in SPECIAL_PAGES:  # トップ・クイズ・設定ページは head（アイコン・OGP）とサイト設定だけ更新する
         if not page.is_file():
             continue
         src = read_text(page)
@@ -210,6 +211,17 @@ def cmd_config(args) -> int:
     return 0
 
 
+def cmd_accent(args) -> int:
+    """アクセント色だけを書き換える（設定ページから動かす Actions の「Set accent color」も使う）。
+    ページへの反映は build が行う。"""
+    cfg = set_accent(args.color, args.light or "")
+    light, dark = accents(cfg)
+    auto = "" if cfg["branding"]["accent_light"] else "（accent から自動）"
+    print(f"{CONFIG_FILE.name} を更新: accent={dark} accent_light={light}{auto}")
+    print("ページに反映するには python3 scripts/memo.py build を実行する")
+    return 0
+
+
 def cmd_list(_args) -> int:
     for p in memo_files():
         m = read_meta(p)
@@ -281,11 +293,16 @@ def main() -> int:
     p.add_argument("key", nargs="?")
     p.set_defaults(func=cmd_config)
 
+    p = sub.add_parser("accent", help="アクセント色を memo.config.json に書く（ページへの反映は build）")
+    p.add_argument("color", help="ダークモードのアクセント色（#rgb か #rrggbb）")
+    p.add_argument("light", nargs="?", help="ライトモードのアクセント色（省くか空なら color から自動で決める）")
+    p.set_defaults(func=cmd_accent)
+
     p = sub.add_parser("list", help="メモ一覧を表示")
     p.set_defaults(func=cmd_list)
 
     p = sub.add_parser("preview", help="クイズの JS/CSS や一覧データを埋め込んだ 1 枚の HTML を書き出す（会話内プレビュー用）")
-    p.add_argument("src", help="メモ名・index・quiz、または下書きの HTML ファイル")
+    p.add_argument("src", help="メモ名・index・quiz・settings、または下書きの HTML ファイル")
     p.add_argument("-o", "--out", help="出力先（省略時は一時フォルダの memo-preview/）")
     p.set_defaults(func=cmd_preview)
 

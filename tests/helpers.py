@@ -28,7 +28,7 @@ TEMPLATE_REL = Path(".claude/skills/memo-style/template.html")
 CONFIG_NAME = "memo.config.json"
 ENTRY_REL = Path("entry-skill/SKILL.md")
 # docs/ のうち、メモではなく仕組みの一部として持っていくもの
-MECHANISM_DOCS = ("index.html", "quiz.html", "assets")
+MECHANISM_DOCS = ("index.html", "quiz.html", "settings.html", "assets")
 GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com",
            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com"}
 

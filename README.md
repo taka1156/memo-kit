@@ -5,6 +5,7 @@ Claude に作ってもらった図解つきの解説ページ（HTML）を、Git
 
 - トップページ: `docs/index.html`（メモ一覧・検索・タグ絞り込み・ランダムクイズ）
 - クイズページ: `docs/quiz.html`（ランダム 10 問・カテゴリ別 10 問。最後にスコアと正答一覧、本文へのリンク）
+- 設定ページ: `docs/settings.html`（アクセント色を候補から選ぶか自分で決めて試し、GitHub Actions でサイト全体に固定する。下の「アクセント色を変える」）
 - AI 向けの Markdown 版: `docs/md/` と `docs/llms.txt`（公開 URL を渡せば、リポジトリを繋いでいない会話でも Claude が過去のメモを読める）
 - 設定: `memo.config.json`（サイト名・説明・リポジトリ・ブランチ・タイムゾーン・アイコンと OGP 画像。コードやスキルには直接書かない）
 - 公開 URL: `docs/CNAME` があればその独自ドメイン、なければ `https://<owner>.github.io/<name>/`（`python3 scripts/memo.py url` で確認できます。OGP の URL もここから自動で決まります）
@@ -29,7 +30,7 @@ GitHub でこのリポジトリの「Use this template」→「Create a new repo
 ### 2. サンプルを消す
 
 ```bash
-find docs -maxdepth 1 -name '*.html' ! -name index.html ! -name quiz.html -delete   # サンプルのメモ
+find docs -maxdepth 1 -name '*.html' ! -name index.html ! -name quiz.html ! -name settings.html -delete   # サンプルのメモ
 rm -rf docs/md docs/memos.json docs/quizzes.json docs/llms.txt entry-skill            # 生成物（build で作り直す）
 ```
 
@@ -74,6 +75,18 @@ python3 -B -m unittest discover -s tests   # テスト
 
 - **Claude Code や、リポジトリを繋いだ claude.ai の会話**: `.claude/skills/` のスキルがそのまま使えます（下の「Claude に頼むとき」）。
 - **claude.ai のアプリ**: `entry-skill/SKILL.md`（`build` が設定から生成）をアプリ側のスキルとして登録します（下の「アプリ（claude.ai）から使うとき」）。
+
+## アクセント色を変える
+
+見出し・強調・リンクの色（アクセント色）は、公開したサイトの設定ページ（`https://…/settings.html`）から変えられます。サーバーはないので、ページで試した色を GitHub Actions で固定します。
+
+1. 設定ページで候補から選ぶか、自分で色を決める（そのページだけがその場で変わり、ダーク・ライトでの見え方とコントラスト比が出ます）。
+2. 「GitHub で固定する」で Actions の `Set accent color` を開き、「Run workflow」にページに出た `accent`・`accent_light` を貼って実行する。
+3. Actions が `memo.config.json` を書き換えて全ページを作り直し、コミットします。1〜2 分でサイトに反映されます。
+
+- 実行できるのはリポジトリに書き込み権限がある人だけです（ページを見た人は色を試せるだけで、変えられません）。
+- 手元では `python3 scripts/memo.py accent '#3ddc97' '#0f7a50'` → `python3 scripts/memo.py build` でも同じです。
+- アイコン・OGP 画像の色はこれでは変わりません。揃えたいときは手元で `python3 branding/render.py` を実行してコミットします。
 
 ## 必要なもの
 
