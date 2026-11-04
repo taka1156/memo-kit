@@ -17,8 +17,9 @@ CONFIG_FILE = ROOT / "memo.config.json"
 DOCS = ROOT / "docs"  # GitHub Pages の公開元
 INDEX = DOCS / "index.html"
 QUIZ_PAGE = DOCS / "quiz.html"  # 全メモの問題から 10 問解くページ
+SETTINGS_PAGE = DOCS / "settings.html"  # 管理者がアクセント色を試して、固定する手順へ進むページ
 # メモではない特別なページ（一覧に載せない・メモ名に使えない）。一覧データは memos.json などから読み込む
-SPECIAL_PAGES = (INDEX, QUIZ_PAGE)
+SPECIAL_PAGES = (INDEX, QUIZ_PAGE, SETTINGS_PAGE)
 SPECIAL_NAMES = {p.name for p in SPECIAL_PAGES}
 
 # memo.config.json の項目と、書かれていないときの値
@@ -38,18 +39,20 @@ BRANDING_DEFAULTS: dict = {
     "tagline": "",      # OGP 画像の説明文（空なら description）
     "url": "",          # OGP 画像に小さく出す URL（空なら公開 URL のホスト名とパス）
     "mark": "",         # アイコンの文字（1〜2 文字。空なら title の先頭 1 文字）
+    "icon": "mark",     # アイコンの絵柄。mark（紙に mark の文字）か lines（文字なし。小さいアイコンは横線 3 本）
     "accent": "#00d4ff",  # アクセント色（ダークモードのページと dark の画像）。#rgb か #rrggbb
     "accent_light": "",   # ライトモードのページと light の画像のアクセント色（空なら accent を白地で読める濃さまで暗くする）
     "theme": "dark",    # 画像のテーマ。dark か light
 }
 THEMES = ("dark", "light")
+ICON_STYLES = ("mark", "lines")
 HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$")
 
 
 # 文字列の項目と、空を許さないもの
 STRING_KEYS = ("site_name", "description", "llms_description", "repository", "branch")
 REQUIRED_STRINGS = ("site_name", "branch")
-BRANDING_STRING_KEYS = ("title", "tagline", "url", "mark", "accent", "accent_light", "theme")
+BRANDING_STRING_KEYS = ("title", "tagline", "url", "mark", "icon", "accent", "accent_light", "theme")
 
 
 def _type_name(value) -> str:
@@ -110,7 +113,36 @@ def load_config(path: Path = CONFIG_FILE) -> dict:
             fail(f"branding.{key} は #rgb か #rrggbb で書いてください: {value!r}")
     if brand["theme"] not in THEMES:
         fail(f"branding.theme は {' / '.join(THEMES)} のどちらかです: {brand['theme']!r}")
+    if brand["icon"] not in ICON_STYLES:
+        fail(f"branding.icon は {' / '.join(ICON_STYLES)} のどちらかです: {brand['icon']!r}")
     return {**DEFAULTS, **data, "branding": brand}
+
+
+def set_accent(accent: str, accent_light: str = "", path: Path = CONFIG_FILE) -> dict:
+    """memo.config.json の branding.accent・accent_light だけを書き換える（ほかの項目と並び順はそのまま）。
+    accent_light が空なら項目を消し、accent から自動で決めさせる。
+    書き換えた結果が設定として正しくなければ、ファイルを元に戻して止める。返り値は読み直した設定。"""
+    original = path.read_text(encoding="utf-8") if path.is_file() else None
+    data = json.loads(original) if original else {}
+    if not isinstance(data, dict):
+        raise SystemExit(f"{path.name}: 全体を {{ ... }}（オブジェクト）で書いてください")
+    brand = data.get("branding")
+    brand = dict(brand) if isinstance(brand, dict) else {}
+    brand["accent"] = accent.strip()
+    if accent_light.strip():
+        brand["accent_light"] = accent_light.strip()
+    else:
+        brand.pop("accent_light", None)
+    data["branding"] = brand
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    try:
+        return load_config(path)
+    except SystemExit:
+        if original is None:
+            path.unlink()
+        else:
+            path.write_text(original, encoding="utf-8")
+        raise
 
 
 def read_text(path: Path) -> str:

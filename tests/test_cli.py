@@ -88,6 +88,9 @@ class BuildTest(unittest.TestCase):
             self.assertTrue({q["file"] for q in quizzes} <= files)
             self.assertNotIn("index.html", files)
             self.assertNotIn("quiz.html", files)
+            self.assertNotIn("settings.html", files)
+            self.assertFalse((ws.docs / "md" / "settings.md").exists())
+            self.assertNotIn("settings", (ws.docs / "llms.txt").read_text(encoding="utf-8"))
 
     def test_sample_quizzes_are_collected(self):
         with Workspace() as ws:
@@ -322,6 +325,51 @@ class SiteConfigTest(unittest.TestCase):
             self.assertIn("raw.githubusercontent.com/alice/notes/trunk/README.md", entry)
             self.assertEqual(ws.run("url").stdout.strip(), "https://alice.github.io/notes/")
             self.assertEqual(ws.run("build", "--check", check=False).returncode, 0)
+
+    def test_settings_page_shows_current_accent_and_workflow_link(self):
+        with Workspace() as ws:
+            settings = (ws.docs / "settings.html").read_text(encoding="utf-8")
+            self.assertIn('id="cur-dark" data-memo-site="{accent}">#00d4ff</code>', settings)
+            self.assertIn('id="cur-light" data-memo-site="{accent_light}">#007f99</code>', settings)  # ライト用は自動
+            self.assertIn('href="https://github.com/example/test-memo/actions/workflows/set-accent.yml"', settings)
+            self.assertIn(">TEST MEMO 設定</title>", settings)
+            self.assertIn('<meta name="robots" content="noindex">', settings)
+            index = (ws.docs / "index.html").read_text(encoding="utf-8")
+            self.assertIn('<a href="settings.html">設定</a>', index)  # トップのフッターから開ける
+
+    def test_accent_command_then_build_changes_every_page(self):
+        with Workspace() as ws:
+            p = ws.run("accent", "#3ddc97", "#0f7a50")
+            self.assertIn("accent=#3ddc97 accent_light=#0f7a50", p.stdout)
+            cfg = self.config(ws)
+            self.assertEqual(cfg["branding"], {"accent": "#3ddc97", "accent_light": "#0f7a50"})
+            self.assertEqual(cfg["site_name"], "TEST MEMO")  # ほかの項目は残る
+            self.assertEqual(ws.run("build", "--check", check=False).returncode, 1)
+            ws.run("build")
+            for name in ("index.html", "quiz.html", "settings.html", "sample.html", "sample-plain.html"):
+                text = (ws.docs / name).read_text(encoding="utf-8")
+                self.assertIn("html:root{--accent:#0f7a50}", text, name)
+                self.assertIn("html:root{--accent:#3ddc97}}", text, name)
+            settings = (ws.docs / "settings.html").read_text(encoding="utf-8")
+            self.assertIn('data-memo-site="{accent}">#3ddc97</code>', settings)
+            # 同じ色をもう一度入れても何も変わらない
+            before = ws.snapshot()
+            ws.run("accent", "#3ddc97", "#0f7a50")
+            ws.run("build")
+            self.assertEqual(diff_names(before, ws.snapshot()), [])
+            # ライト用を省くと自動で決まる
+            p = ws.run("accent", "#3ddc97")
+            self.assertIn("（accent から自動）", p.stdout)
+            self.assertNotIn("accent_light", self.config(ws)["branding"])
+
+    def test_accent_command_rejects_bad_color_without_changing_config(self):
+        with Workspace() as ws:
+            before = (ws.root / "memo.config.json").read_text(encoding="utf-8")
+            p = ws.run("accent", "green", check=False)
+            self.assertNotEqual(p.returncode, 0)
+            self.assertIn("branding.accent は #rgb か #rrggbb", p.stderr)
+            self.assertNotIn("Traceback", p.stderr)
+            self.assertEqual((ws.root / "memo.config.json").read_text(encoding="utf-8"), before)
 
     def test_broken_config_stops_with_message_not_traceback(self):
         with Workspace() as ws:

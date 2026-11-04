@@ -174,7 +174,8 @@ def apply_quiz(text: str) -> str:
 
 # ---------------------------------------------------------------- サイト設定の差し込み
 #
-# トップ・クイズページの「サイト名」「説明」「リポジトリへのリンク」は memo.config.json から入れる。
+# トップ・クイズ・設定ページの「サイト名」「説明」「リポジトリへのリンク」「今のアクセント色」は
+# memo.config.json から入れる（使える名前は site_fields()）。
 # ページ側では書き換えたい要素に属性で目印を付ける（値は {site_name} などを埋め込んだ書式）。
 #   <h1 data-memo-site="{site_name}">…</h1>                → 要素の中身（テキスト）を置き換える
 #   <a href="…" data-memo-site-href="https://…/{repository}">  → 同じタグの href 属性を置き換える
@@ -187,8 +188,10 @@ SITE_ATTR_RE = re.compile(r'\sdata-memo-site-([a-z]+)="([^"]*)"')
 
 
 def site_fields() -> dict[str, str]:
+    light, dark = accents()
     return {"site_name": CONFIG["site_name"], "description": CONFIG["description"],
-            "repository": CONFIG["repository"]}
+            "repository": CONFIG["repository"], "branch": CONFIG["branch"],
+            "accent": dark, "accent_light": light}
 
 
 def _fill(template: str) -> str:
