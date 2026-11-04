@@ -78,7 +78,7 @@ python3 -B -m unittest discover -s tests   # テスト
 
 ## アクセント色を変える
 
-見出し・強調・リンクの色（アクセント色）は、公開したサイトの設定ページ（`https://…/settings.html`）から変えられます。サーバーはないので、ページで試した色を GitHub Actions で固定します。
+見出し・強調・リンクの色（アクセント色）は、公開したサイトの設定ページ（`https://…/settings.html`。トップページのいちばん下の「設定」から開けます）から変えられます。サーバーはないので、ページで試した色を GitHub Actions で固定します。
 
 1. 設定ページで候補から選ぶか、自分で色を決める（そのページだけがその場で変わり、ダーク・ライトでの見え方とコントラスト比が出ます）。
 2. 「GitHub で固定する」で Actions の `Set accent color` を開き、「Run workflow」にページに出た `accent`・`accent_light` を貼って実行する。

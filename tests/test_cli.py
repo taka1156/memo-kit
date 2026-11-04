@@ -334,6 +334,8 @@ class SiteConfigTest(unittest.TestCase):
             self.assertIn('href="https://github.com/example/test-memo/actions/workflows/set-accent.yml"', settings)
             self.assertIn(">TEST MEMO 設定</title>", settings)
             self.assertIn('<meta name="robots" content="noindex">', settings)
+            index = (ws.docs / "index.html").read_text(encoding="utf-8")
+            self.assertIn('<a href="settings.html">設定</a>', index)  # トップのフッターから開ける
 
     def test_accent_command_then_build_changes_every_page(self):
         with Workspace() as ws:
