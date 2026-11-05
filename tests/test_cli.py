@@ -10,44 +10,43 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import unittest
 
-from helpers import ENTRY_REL, REPO, Workspace, diff_names, repo_has_memos, repo_snapshot
+from helpers import ENTRY_REL, REPO, Workspace, diff_names, repo_has_memos
 
 GENERATED_BLOCKS = (r"<!-- memo:head.*?<!-- /memo:head -->\n?", r"<!-- memo:quiz.*?<!-- /memo:quiz -->\n?")
+GENERATED_IN_DOCS = ("memos.json", "quizzes.json", "llms.txt", "md")
 
 
-def strip_generated(ws: Workspace) -> None:
-    """自動生成ブロックと生成物をすべて消す（原本だけの状態にする）。"""
-    for page in ws.docs.glob("*.html"):
-        text = page.read_text(encoding="utf-8")
-        for pat in GENERATED_BLOCKS:
-            text = re.sub(pat, "", text, flags=re.S)
-        page.write_text(text, encoding="utf-8")
-    for name in ("memos.json", "quizzes.json", "llms.txt"):
-        (ws.docs / name).unlink()
-    for md in (ws.docs / "md").glob("*.md"):
-        md.unlink()
-    (ws.root / ENTRY_REL).unlink(missing_ok=True)
+def remove_dist(ws: Workspace) -> None:
+    shutil.rmtree(ws.dist, ignore_errors=True)
 
 
 @unittest.skipUnless(repo_has_memos(), "本物のメモがない（仕組みだけのリポジトリ）")
 class RepositoryTest(unittest.TestCase):
     """このリポジトリにコミットされている中身のテスト。"""
 
-    def test_committed_outputs_are_up_to_date(self):
-        """リポジトリにコミットされている生成物が最新であること（build --check）。"""
+    def test_sources_have_no_generated_outputs(self):
+        """src/ は原本だけ: 自動生成ブロックも生成物も入っていないこと。"""
         with Workspace(real=True) as ws:
-            p = ws.run("build", "--check", check=False)
-            self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+            for page in sorted(ws.src.glob("*.html")):
+                text = page.read_text(encoding="utf-8")
+                for pat in GENERATED_BLOCKS:
+                    self.assertIsNone(re.search(pat, text, re.S), f"{page.name} に自動生成ブロックがある")
+            for name in GENERATED_IN_DOCS:
+                self.assertFalse((ws.src / name).exists(), f"src/{name} は build が dist/ に作る")
 
-    def test_rebuild_from_sources_matches_repository(self):
-        """自動生成ブロックと生成物をすべて消してから build すると、リポジトリと同じ中身に戻ること。"""
+    def test_build_writes_only_dist(self):
+        """本物のメモで build しても src/ は 1 バイトも変わらず、dist/ に全ページができること。"""
         with Workspace(real=True) as ws:
-            strip_generated(ws)
+            before = ws.snapshot()
             ws.run("build")
-            self.assertEqual(diff_names(ws.snapshot(), repo_snapshot()), [])
-            self.assertEqual((ws.root / ENTRY_REL).read_bytes(), (REPO / ENTRY_REL).read_bytes())
+            self.assertEqual(diff_names(before, ws.snapshot()), [])
+            for name in ws.memo_names():
+                self.assertIn("<!-- memo:head", ws.read(f"{name}.html"), name)
+                self.assertTrue((ws.dist / "md" / f"{name}.md").is_file(), name)
+            self.assertEqual(ws.run("build", "--check", check=False).returncode, 0)
 
     def test_all_memos_pass_lint(self):
         with Workspace(real=True) as ws:
@@ -56,29 +55,46 @@ class RepositoryTest(unittest.TestCase):
 
 
 class BuildTest(unittest.TestCase):
-    def test_rebuild_from_sources_is_stable(self):
-        """生成物をすべて消して build し直すと、元と同じ中身に戻ること。"""
+    def test_build_does_not_touch_sources(self):
         with Workspace() as ws:
             before = ws.snapshot()
-            entry = (ws.root / ENTRY_REL).read_bytes()
-            strip_generated(ws)
+            remove_dist(ws)
             ws.run("build")
-            self.assertEqual(diff_names(ws.snapshot(), before), [])
-            self.assertEqual((ws.root / ENTRY_REL).read_bytes(), entry)
+            self.assertEqual(diff_names(before, ws.snapshot()), [])
+
+    def test_rebuild_from_scratch_is_stable(self):
+        """dist/ を消して build し直すと、元と同じ中身に戻ること。"""
+        with Workspace() as ws:
+            before = ws.snapshot("dist")
+            remove_dist(ws)
+            ws.run("build")
+            self.assertEqual(diff_names(ws.snapshot("dist"), before), [])
             self.assertEqual(ws.run("build", "--check", check=False).returncode, 0)
+
+    def test_dist_is_a_complete_site(self):
+        """dist/ だけで公開できること: 原本の共通ファイルのコピーと、生成物がそろっている。"""
+        with Workspace() as ws:
+            for rel in ("index.html", "quiz.html", "settings.html", "sample.html", "sample-plain.html",
+                        "CNAME", "assets/memo-quiz.css", "assets/memo-quiz.js", "memos.json", "quizzes.json",
+                        "llms.txt", "md/sample.md", str(ENTRY_REL)):
+                self.assertTrue((ws.dist / rel).is_file(), rel)
+            self.assertEqual((ws.dist / "assets" / "memo-quiz.js").read_bytes(),
+                             (ws.src / "assets" / "memo-quiz.js").read_bytes())
+            self.assertIn("<!-- memo:head", ws.read("sample.html"))
+            self.assertNotIn("<!-- memo:head", (ws.src / "sample.html").read_text(encoding="utf-8"))
 
     def test_build_is_idempotent(self):
         with Workspace() as ws:
             ws.run("build")
-            before = ws.snapshot()
+            before = ws.snapshot("dist")
             p = ws.run("build")
             self.assertIn("変更なし", p.stdout)
-            self.assertEqual(diff_names(before, ws.snapshot()), [])
+            self.assertEqual(diff_names(before, ws.snapshot("dist")), [])
 
     def test_memos_json_matches_list(self):
         with Workspace() as ws:
-            memos = json.loads((ws.docs / "memos.json").read_text(encoding="utf-8"))
-            quizzes = json.loads((ws.docs / "quizzes.json").read_text(encoding="utf-8"))
+            memos = json.loads(ws.read("memos.json"))
+            quizzes = json.loads(ws.read("quizzes.json"))
             listed = ws.run("list").stdout.splitlines()
             self.assertEqual(len(memos), len(listed))
             self.assertEqual(sum(m["quizzes"] for m in memos), len(quizzes))
@@ -89,46 +105,57 @@ class BuildTest(unittest.TestCase):
             self.assertNotIn("index.html", files)
             self.assertNotIn("quiz.html", files)
             self.assertNotIn("settings.html", files)
-            self.assertFalse((ws.docs / "md" / "settings.md").exists())
-            self.assertNotIn("settings", (ws.docs / "llms.txt").read_text(encoding="utf-8"))
+            self.assertFalse((ws.dist / "md" / "settings.md").exists())
+            self.assertNotIn("settings", ws.read("llms.txt"))
 
     def test_sample_quizzes_are_collected(self):
         with Workspace() as ws:
-            quizzes = json.loads((ws.docs / "quizzes.json").read_text(encoding="utf-8"))
+            quizzes = json.loads(ws.read("quizzes.json"))
             self.assertEqual([q["file"] for q in quizzes], ["sample.html"] * 3)
             self.assertEqual([q["answer"] for q in quizzes], [1, 0, 2])
-            memos = {m["file"]: m for m in json.loads((ws.docs / "memos.json").read_text(encoding="utf-8"))}
+            memos = {m["file"]: m for m in json.loads(ws.read("memos.json"))}
             self.assertEqual(memos["sample.html"]["quizzes"], 3)
             self.assertEqual(memos["sample-plain.html"]["quizzes"], 0)
-            self.assertIn("<!-- memo:quiz", (ws.docs / "sample.html").read_text(encoding="utf-8"))
-            self.assertNotIn("<!-- memo:quiz", (ws.docs / "sample-plain.html").read_text(encoding="utf-8"))
+            self.assertIn("<!-- memo:quiz", ws.read("sample.html"))
+            self.assertNotIn("<!-- memo:quiz", ws.read("sample-plain.html"))
 
     def test_removed_memo_disappears_from_outputs(self):
         with Workspace() as ws:
-            self.assertTrue((ws.docs / "md" / "sample.md").exists())
-            (ws.docs / "sample.html").unlink()
-            ws.run("build")
-            self.assertFalse((ws.docs / "md" / "sample.md").exists())
-            memos = json.loads((ws.docs / "memos.json").read_text(encoding="utf-8"))
+            self.assertTrue((ws.dist / "md" / "sample.md").exists())
+            (ws.src / "sample.html").unlink()
+            p = ws.run("build")
+            self.assertIn("削除", p.stdout)
+            self.assertFalse((ws.dist / "sample.html").exists())
+            self.assertFalse((ws.dist / "md" / "sample.md").exists())
+            memos = json.loads(ws.read("memos.json"))
             self.assertNotIn("sample.html", {m["file"] for m in memos})
-            self.assertNotIn("sample.html", (ws.docs / "quizzes.json").read_text(encoding="utf-8"))
-            self.assertNotIn("md/sample.md", (ws.docs / "llms.txt").read_text(encoding="utf-8"))
+            self.assertNotIn("sample.html", ws.read("quizzes.json"))
+            self.assertNotIn("md/sample.md", ws.read("llms.txt"))
+
+    def test_removed_asset_disappears_from_dist(self):
+        with Workspace() as ws:
+            (ws.src / "assets" / "zz.txt").write_text("x", encoding="utf-8")
+            ws.run("build")
+            self.assertTrue((ws.dist / "assets" / "zz.txt").is_file())
+            (ws.src / "assets" / "zz.txt").unlink()
+            ws.run("build")
+            self.assertFalse((ws.dist / "assets" / "zz.txt").exists())
 
     def test_check_reports_stale_without_writing(self):
         with Workspace() as ws:
-            (ws.docs / "memos.json").write_text("[]\n", encoding="utf-8")
-            before = ws.snapshot()
+            (ws.dist / "memos.json").write_text("[]\n", encoding="utf-8")
+            before = ws.snapshot("dist")
             p = ws.run("build", "--check", check=False)
             self.assertEqual(p.returncode, 1)
             self.assertIn("memos.json", p.stdout)
-            self.assertEqual(diff_names(before, ws.snapshot()), [])
+            self.assertEqual(diff_names(before, ws.snapshot("dist")), [])
 
 
 class NewAddMetaTest(unittest.TestCase):
     def test_new_copies_template_and_refuses_existing(self):
         with Workspace() as ws:
             ws.run("new", "zz-sample")
-            self.assertEqual((ws.docs / "zz-sample.html").read_text(encoding="utf-8"),
+            self.assertEqual((ws.src / "zz-sample.html").read_text(encoding="utf-8"),
                              (REPO / ".claude/skills/memo-style/template.html").read_text(encoding="utf-8"))
             self.assertNotEqual(ws.run("new", "zz-sample", check=False).returncode, 0)
 
@@ -146,22 +173,24 @@ class NewAddMetaTest(unittest.TestCase):
             src = ws.root / "pasted.md"
             src.write_text("```html\n<!DOCTYPE html>\n<html><body>x</body></html>\n```\n", encoding="utf-8")
             ws.run("add", str(src), "zz-pasted")
-            self.assertEqual((ws.docs / "zz-pasted.html").read_text(encoding="utf-8"),
+            self.assertEqual((ws.src / "zz-pasted.html").read_text(encoding="utf-8"),
                              "<!DOCTYPE html>\n<html><body>x</body></html>")
             self.assertNotEqual(ws.run("add", str(src), "zz-pasted", check=False).returncode, 0)
             ws.run("add", str(src), "zz-pasted", "--force")
 
     def test_meta_sets_fields_escapes_and_normalizes_tags(self):
         with Workspace() as ws:
-            ws.run("add", str(ws.docs / "sample.html"), "zz-meta")
+            ws.run("add", str(ws.src / "sample.html"), "zz-meta")
             out = json.loads(ws.run("meta", "zz-meta", "--title", "T <x>", "--desc", 'D "q"',
                                     "--tags", " a, b ,,", "--date", "2026-01-02").stdout)
             self.assertEqual(out, {"file": "zz-meta.html", "title": "T <x>", "desc": 'D "q"',
                                    "tags": ["a", "b"], "date": "2026-01-02"})
-            text = (ws.docs / "zz-meta.html").read_text(encoding="utf-8")
+            text = (ws.src / "zz-meta.html").read_text(encoding="utf-8")
             self.assertIn("<title>T &lt;x&gt;</title>", text)
             self.assertIn('<meta name="description" content="D &quot;q&quot;">', text)
-            self.assertIn('<meta property="og:title" content="T &lt;x&gt;">', text)
+            self.assertNotIn("<!-- memo:head", text)  # 原本には自動生成ブロックを入れない
+            ws.run("build")
+            self.assertIn('<meta property="og:title" content="T &lt;x&gt;">', ws.read("zz-meta.html"))
 
     def test_meta_rejects_bad_date(self):
         with Workspace() as ws:
@@ -179,9 +208,9 @@ class NewAddMetaTest(unittest.TestCase):
             p = ws.run("add", str(src), "sj", check=False)
             self.assertNotEqual(p.returncode, 0)
             self.assertIn("sjis.html: UTF-8 で読めません", p.stderr)
-            (ws.docs / "broken.html").write_bytes(b"\xff\xfe<html>")
+            (ws.src / "broken.html").write_bytes(b"\xff\xfe<html>")
             p = ws.run("build", check=False)
-            self.assertIn("docs/broken.html: UTF-8 で読めません", p.stderr)
+            self.assertIn("src/broken.html: UTF-8 で読めません", p.stderr)
             self.assertNotIn("Traceback", p.stderr)
 
 
@@ -209,12 +238,24 @@ class LintTest(unittest.TestCase):
             self.assertTrue(text.startswith("<!DOCTYPE html>"))
             self.assertIn("* { margin: 0 }", text)
             self.assertIn('"Noto Sans JP"', text)
-            for needle in ('<meta charset="UTF-8">', 'name="viewport"', 'id="memo-backlink"',
-                           "<!-- memo:head", "<!-- memo:quiz", "assets/memo-quiz.js"):
+            for needle in ('<meta charset="UTF-8">', 'name="viewport"', 'id="memo-backlink"'):
                 self.assertIn(needle, text)
+            for needle in ("<!-- memo:head", "<!-- memo:quiz"):  # 自動生成ブロックは build が dist/ にだけ入れる
+                self.assertNotIn(needle, text)
             again = ws.run("lint", str(draft), check=False)
             self.assertEqual(again.returncode, 0, again.stdout)
             self.assertIn("OK", again.stdout)
+
+    def test_fix_strips_generated_blocks_from_source(self):
+        """公開ページ（dist/）からコピーした HTML を取り込んでも、lint --fix で原本の形に戻ること。"""
+        with Workspace() as ws:
+            ws.run("add", str(ws.dist / "sample.html"), "zz-copied")
+            p = ws.run("lint", "zz-copied", check=False)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("自動生成ブロック", p.stdout)
+            ws.run("lint", "zz-copied", "--fix")
+            self.assertEqual((ws.src / "zz-copied.html").read_text(encoding="utf-8"),
+                             (ws.src / "sample.html").read_text(encoding="utf-8"))
 
     def test_lint_reports_quiz_problems(self):
         with Workspace() as ws:
@@ -234,7 +275,7 @@ class LintTest(unittest.TestCase):
 class PreviewTest(unittest.TestCase):
     def test_memo_preview_inlines_quiz_assets(self):
         with Workspace() as ws:
-            src_before = (ws.docs / "sample.html").read_bytes()
+            src_before = (ws.src / "sample.html").read_bytes()
             out = ws.root / "out" / "sample.html"
             ws.run("preview", "sample", "-o", str(out))
             text = out.read_text(encoding="utf-8")
@@ -242,11 +283,11 @@ class PreviewTest(unittest.TestCase):
             self.assertNotIn("assets/memo-quiz.js", text)
             self.assertIn("#memo-quiz-ui", text)  # CSS の中身
             self.assertIn("function refLink", text)  # JS の中身
-            self.assertEqual((ws.docs / "sample.html").read_bytes(), src_before)
+            self.assertEqual((ws.src / "sample.html").read_bytes(), src_before)
 
     def test_index_and_quiz_preview_embed_data(self):
         with Workspace() as ws:
-            memos = json.loads((ws.docs / "memos.json").read_text(encoding="utf-8"))
+            memos = json.loads(ws.read("memos.json"))
             for page in ("index", "quiz"):
                 with self.subTest(page=page):
                     out = ws.root / f"{page}.html"
@@ -260,16 +301,16 @@ class PreviewTest(unittest.TestCase):
 
     def test_preview_refuses_to_overwrite_source(self):
         with Workspace() as ws:
-            p = ws.run("preview", "sample", "-o", str(ws.docs / "sample.html"), check=False)
+            p = ws.run("preview", "sample", "-o", str(ws.src / "sample.html"), check=False)
             self.assertNotEqual(p.returncode, 0)
 
 
 class PathUrlTest(unittest.TestCase):
     def test_path_and_url(self):
         with Workspace() as ws:
-            self.assertEqual(ws.run("path", "sample").stdout.strip(), str(ws.docs / "sample.html"))
-            self.assertEqual(ws.run("path", "sample", "--md").stdout.strip(), str(ws.docs / "md" / "sample.md"))
-            cname = (ws.docs / "CNAME").read_text(encoding="utf-8").strip()
+            self.assertEqual(ws.run("path", "sample").stdout.strip(), str(ws.src / "sample.html"))
+            self.assertEqual(ws.run("path", "sample", "--md").stdout.strip(), str(ws.dist / "md" / "sample.md"))
+            cname = (ws.src / "CNAME").read_text(encoding="utf-8").strip()
             self.assertEqual(ws.run("url", "sample").stdout.strip(), f"https://{cname}/sample.html")
             self.assertEqual(ws.run("url").stdout.strip(), f"https://{cname}/")
 
@@ -290,8 +331,8 @@ class SiteConfigTest(unittest.TestCase):
 
     def test_site_values_are_filled_into_pages(self):
         with Workspace() as ws:
-            index = (ws.docs / "index.html").read_text(encoding="utf-8")
-            quiz = (ws.docs / "quiz.html").read_text(encoding="utf-8")
+            index = ws.read("index.html")
+            quiz = ws.read("quiz.html")
             self.assertIn('<title data-memo-site="{site_name}">TEST MEMO</title>', index)
             self.assertIn('>テスト用のメモ置き場</p>', index)
             self.assertIn('href="https://github.com/example/test-memo"', index)
@@ -299,7 +340,7 @@ class SiteConfigTest(unittest.TestCase):
             self.assertIn('<meta property="og:url" content="https://memo.example.com/">', index)
             self.assertIn(">TEST MEMO クイズ</title>", quiz)
             self.assertIn('content="TEST MEMO の確認クイズから', quiz)
-            llms = (ws.docs / "llms.txt").read_text(encoding="utf-8")
+            llms = ws.read("llms.txt")
             self.assertTrue(llms.startswith("# TEST MEMO\n\n> テスト用のメモの集まり。\n"))
 
     def test_changing_config_updates_everything_on_build(self):
@@ -307,20 +348,20 @@ class SiteConfigTest(unittest.TestCase):
             cfg = {**self.config(ws), "site_name": "NOTES", "repository": "alice/notes", "branch": "trunk",
                    "branding": {"accent": "#ff5500", "accent_light": "#aa3300"}}
             (ws.root / "memo.config.json").write_text(json.dumps(cfg), encoding="utf-8")
-            (ws.docs / "CNAME").unlink()
+            (ws.src / "CNAME").unlink()
             p = ws.run("build", "--check", check=False)
             self.assertEqual(p.returncode, 1)
             self.assertIn("entry-skill/SKILL.md", p.stdout)
             ws.run("build")
-            index = (ws.docs / "index.html").read_text(encoding="utf-8")
+            index = ws.read("index.html")
             self.assertIn(">NOTES</h1>", index)
             self.assertIn('content="https://alice.github.io/notes/"', index)
-            sample = (ws.docs / "sample.html").read_text(encoding="utf-8")
+            sample = ws.read("sample.html")
             self.assertIn('<meta property="og:site_name" content="NOTES">', sample)
-            for page_text in (index, sample, (ws.docs / "quiz.html").read_text(encoding="utf-8")):
+            for page_text in (index, sample, ws.read("quiz.html")):
                 self.assertIn("html:root{--accent:#aa3300}", page_text)
                 self.assertIn("html:root{--accent:#ff5500}}", page_text)
-            entry = (ws.root / ENTRY_REL).read_text(encoding="utf-8")
+            entry = ws.read(str(ENTRY_REL))
             self.assertIn("https://github.com/alice/notes.git notes", entry)
             self.assertIn("raw.githubusercontent.com/alice/notes/trunk/README.md", entry)
             self.assertEqual(ws.run("url").stdout.strip(), "https://alice.github.io/notes/")
@@ -328,13 +369,13 @@ class SiteConfigTest(unittest.TestCase):
 
     def test_settings_page_shows_current_accent_and_workflow_link(self):
         with Workspace() as ws:
-            settings = (ws.docs / "settings.html").read_text(encoding="utf-8")
+            settings = ws.read("settings.html")
             self.assertIn('id="cur-dark" data-memo-site="{accent}">#00d4ff</code>', settings)
             self.assertIn('id="cur-light" data-memo-site="{accent_light}">#007f99</code>', settings)  # ライト用は自動
             self.assertIn('href="https://github.com/example/test-memo/actions/workflows/set-accent.yml"', settings)
             self.assertIn(">TEST MEMO 設定</title>", settings)
             self.assertIn('<meta name="robots" content="noindex">', settings)
-            index = (ws.docs / "index.html").read_text(encoding="utf-8")
+            index = ws.read("index.html")
             self.assertIn('<a href="settings.html">設定</a>', index)  # トップのフッターから開ける
 
     def test_accent_command_then_build_changes_every_page(self):
@@ -347,16 +388,16 @@ class SiteConfigTest(unittest.TestCase):
             self.assertEqual(ws.run("build", "--check", check=False).returncode, 1)
             ws.run("build")
             for name in ("index.html", "quiz.html", "settings.html", "sample.html", "sample-plain.html"):
-                text = (ws.docs / name).read_text(encoding="utf-8")
+                text = ws.read(name)
                 self.assertIn("html:root{--accent:#0f7a50}", text, name)
                 self.assertIn("html:root{--accent:#3ddc97}}", text, name)
-            settings = (ws.docs / "settings.html").read_text(encoding="utf-8")
+            settings = ws.read("settings.html")
             self.assertIn('data-memo-site="{accent}">#3ddc97</code>', settings)
             # 同じ色をもう一度入れても何も変わらない
-            before = ws.snapshot()
+            before = ws.snapshot("dist")
             ws.run("accent", "#3ddc97", "#0f7a50")
             ws.run("build")
-            self.assertEqual(diff_names(before, ws.snapshot()), [])
+            self.assertEqual(diff_names(before, ws.snapshot("dist")), [])
             # ライト用を省くと自動で決まる
             p = ws.run("accent", "#3ddc97")
             self.assertIn("（accent から自動）", p.stdout)
@@ -384,7 +425,7 @@ class SiteConfigTest(unittest.TestCase):
             cfg = {**self.config(ws), "repository": "Alice/My.Notes"}
             (ws.root / "memo.config.json").write_text(json.dumps(cfg), encoding="utf-8")
             ws.run("build")
-            entry = (ws.root / ENTRY_REL).read_text(encoding="utf-8")
+            entry = ws.read(str(ENTRY_REL))
             self.assertIn('name: "my-notes"', entry)
             self.assertIn("https://github.com/Alice/My.Notes.git My.Notes", entry)  # clone 先はリポジトリ名のまま
 
@@ -397,6 +438,16 @@ class SiteConfigTest(unittest.TestCase):
                 p = ws.run("build")  # 警告だけで止めない
                 self.assertIn("警告", p.stderr)
                 self.assertIn("repository", p.stderr)
+
+    def test_deploy_branch_setting(self):
+        with Workspace() as ws:
+            self.assertEqual(ws.run("config", "deploy_branch").stdout.strip(), "dist")
+            for value, msg in (("main", "別のブランチ"), ("a b", "空白")):
+                cfg = {**self.config(ws), "deploy_branch": value}
+                (ws.root / "memo.config.json").write_text(json.dumps(cfg), encoding="utf-8")
+                p = ws.run("config", check=False)
+                self.assertNotEqual(p.returncode, 0, value)
+                self.assertIn(msg, p.stderr, value)
 
     def test_unknown_config_key_is_an_error(self):
         with Workspace() as ws:

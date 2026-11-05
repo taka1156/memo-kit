@@ -85,8 +85,8 @@ def apply_head(text: str, filename: str) -> str:
 #     "explain": "解説", "ref": "#本文の見出しなどの id"}]
 #   explain / ref は任意。ref があると、間違えたときに本文の該当箇所へ飛ぶリンクが出る。
 #   </script>
-# 表示用の UI（<!-- memo:quiz --> ブロック）は memo.py がページ末尾に自動で入れる。
-# build は全メモの問題を docs/quizzes.json に集める（トップのランダムクイズと quiz.html 用）。
+# 表示用の UI（<!-- memo:quiz --> ブロック）は build が dist/ のページ末尾に自動で入れる（原本には入れない）。
+# build は全メモの問題を dist/quizzes.json に集める（トップのランダムクイズと quiz.html 用）。
 
 QUIZ_BEGIN = "<!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->"
 QUIZ_END = "<!-- /memo:quiz -->"
@@ -94,7 +94,7 @@ QUIZ_RE = re.compile(r"<!-- memo:quiz.*?<!-- /memo:quiz -->\n?", re.S)
 QUIZ_DATA_RE = re.compile(
     r"<script\b[^>]*\bid=[\"']memo-quiz[\"'][^>]*>(.*?)</script>", re.S | re.I)
 
-# 表示の CSS / JS は docs/assets/memo-quiz.css・memo-quiz.js に 1 つだけ置き、各メモからは参照する。
+# 表示の CSS / JS は src/assets/memo-quiz.css・memo-quiz.js に 1 つだけ置き、各メモからは参照する。
 # 会話内プレビューのように HTML 1 枚しか渡せない場面では、preview コマンドが中身を埋め込む。
 QUIZ_CSS = ASSETS / "memo-quiz.css"
 QUIZ_JS = ASSETS / "memo-quiz.js"
@@ -218,7 +218,12 @@ def apply_site(text: str) -> str:
     return SITE_TAG_RE.sub(tag, text)
 
 
+def strip_generated(text: str) -> str:
+    """自動生成ブロック（head・クイズ）を取り除く。原本（src/）には置かず、build が dist/ のページにだけ入れる。"""
+    return QUIZ_RE.sub("", HEAD_RE.sub("", text))
+
+
 def apply_generated(text: str, filename: str) -> str:
-    """自動生成ブロック（head・クイズ）とサイト設定の差し込みをすべて最新にする。"""
+    """自動生成ブロック（head・クイズ）とサイト設定の差し込みをすべて最新にする（build が dist/ に書き出すページ用）。"""
     text = apply_head(apply_site(text), filename)
     return text if filename in SPECIAL_NAMES else apply_quiz(text)
