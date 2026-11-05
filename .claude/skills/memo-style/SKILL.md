@@ -147,4 +147,4 @@ python3 scripts/memo.py preview 下書き.html -o <スクラッチパッド>/NAM
 
 ## 書き終えたら
 
-memo-publish の手順 4 以降（lint → meta → build → commit/push → 報告）で登録する（`new` で作ったので取り込み手順 3 は不要）。
+memo-publish の手順 4 以降（lint → meta → build → ファクトチェック → commit/push → 報告）で登録する（`new` で作ったので取り込み手順 3 は不要）。

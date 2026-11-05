@@ -37,4 +37,4 @@ description: 会話の中で説明した内容（または指定されたテー�
 
 ## 4. 登録する
 
-memo-publish の手順 4〜8（lint → meta → build → commit/push → 報告）を実行する。
+memo-publish の手順 4〜8（lint → meta → build → ファクトチェック → commit/push → 報告）を実行する。

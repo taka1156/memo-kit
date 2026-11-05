@@ -58,7 +58,8 @@ HTML を読むのは次のときだけ:
 2. **HTML の該当箇所だけ読む**: `python3 scripts/memo.py path NAME` の HTML を、見出しの id（`id="overlayfs"` など。Markdown 版のリンクの `#` 以降）か、直したい文言そのもので Grep（`-n`）する。ヒットした行の前後だけを Read の offset / limit で読む（目安 50〜100 行）。
 3. **該当部分だけ書き換える**: Edit で文字列を置き換える。ファイル全体を書き直さない。構成・デザイン・クラス名は変えない。
 4. 次の場合は HTML 全体を読んでよい: デザインやレイアウトの崩れを直す、構成を組み替える、JS で動く部分を直す、複数の節にまたがって直す。
-5. **反映する**:
+5. **ファクトチェックする**: 本文の記述を変えたときは、push の前に memo-factcheck の「push の前」の手順で、変えた箇所をチェックする（見た目・崩れだけの修正や、タイトル・タグだけの変更は不要）。指摘があれば確認してから直す。
+6. **反映する**:
 
 ```bash
 python3 scripts/memo.py lint NAME      # OK になること
@@ -71,4 +72,4 @@ git push origin HEAD:"$BRANCH"
 ```
 
 - `memo:date` は更新しない（作成日のまま）。タイトルや説明が変わる修正なら `memo.py meta` で直す。
-- 報告は短く: 何を直したか、公開 URL（`python3 scripts/memo.py url NAME`）。
+- 報告は短く: 何を直したか、ファクトチェックの結果、公開 URL（`python3 scripts/memo.py url NAME`）。
