@@ -123,3 +123,5 @@ push すると GitHub Actions（Deploy MEMO）が build して公開する（数
 - 付けたクイズの問題数
 - ファクトチェックの結果（確認件数と、直した・直さなかった指摘）
 - 公開 URL: `python3 scripts/memo.py url NAME` の出力（独自ドメインは `src/CNAME` から決まる。URL を手で組み立てない）
+
+ロードマップがオン（`python3 scripts/memo.py config roadmap` が `True`）で、登録したメモがロードマップのどの項目にも入っていなければ、memo-roadmap の「C. 書いたメモを足す」を続けて行う。
