@@ -32,7 +32,7 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(config.today(), dt.datetime.now(tz).date().isoformat())
 
     def test_site_url_comes_from_cname_or_repository(self):
-        cname = config.DOCS / "CNAME"
+        cname = config.SRC / "CNAME"
         if cname.is_file():
             self.assertEqual(config.SITE_URL, f"https://{cname.read_text(encoding='utf-8').strip()}/")
         else:
@@ -205,8 +205,8 @@ class MetaTest(unittest.TestCase):
         self.assertLess(text.index('name="description"'), text.index("</head>"))
 
     def test_memo_path_resolves_names(self):
-        target = config.DOCS / "sample.html"
-        for arg in ("sample", "sample.html", "docs/sample.html"):
+        target = config.SRC / "sample.html"
+        for arg in ("sample", "sample.html", "src/sample.html"):
             self.assertEqual(meta.memo_path(arg, must_exist=False), target)
 
     def test_memo_path_rejects_reserved_and_bad_names(self):
@@ -275,6 +275,14 @@ class QuizTest(unittest.TestCase):
         self.assertTrue(any("answer" in p for p in probs))
 
         self.assertEqual(blocks.read_quiz(page(body="<p>なし</p>")), (None, []))
+
+    def test_strip_generated_undoes_apply_generated(self):
+        text = ("<!DOCTYPE html><html><head><title>T</title></head><body><h2 id=\"s\">S</h2>"
+                '<script type="application/json" id="memo-quiz">'
+                '[{"q":"Q","choices":["a","b"],"answer":1}]</script></body></html>')
+        done = blocks.apply_generated(text, "t.html")
+        self.assertIn(blocks.QUIZ_BEGIN, done)
+        self.assertEqual(blocks.strip_generated(done), text)
 
     def test_apply_quiz_inserts_before_footer_once_and_removes_when_no_data(self):
         text = page(body="<p>本文</p>\n" + blocks.BACKLINK + "\n" + quiz_script(QUIZ_OK))

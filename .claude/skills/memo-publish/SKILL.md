@@ -87,11 +87,11 @@ python3 scripts/memo.py meta NAME \
 
 ```bash
 python3 scripts/memo.py lint NAME   # OK になること
-python3 scripts/memo.py build       # 一覧データ（memos.json・quizzes.json）を再生成
+python3 scripts/memo.py build       # 公開用のサイト一式を dist/ に書き出す（src/ は書き換えない）
 python3 scripts/memo.py list
 ```
 
-`docs/memos.json`・`docs/quizzes.json`（トップページとクイズページが読み込む一覧・問題）は自動生成なので手で編集しない。ページ末尾の `<!-- memo:quiz -->` 〜 `<!-- /memo:quiz -->`（クイズの表示部分。本体は `docs/assets/memo-quiz.*` を参照）も自動生成。
+一覧・問題データ（`memos.json`・`quizzes.json`）、Markdown 版、各ページの自動生成ブロック（`<!-- memo:head -->`・`<!-- memo:quiz -->`）は build が `dist/` にだけ作る。`src/` には入らないし、入れない（`dist/` は `.gitignore` 済みでコミットされない）。公開は push 後に GitHub Actions（Deploy MEMO）が `dist/` の中身を dist ブランチにコミットして行う。
 
 登録したページを会話内で見せるときは、ファイルをそのまま送らず `python3 scripts/memo.py preview NAME -o <スクラッチパッド>/NAME.html` で作った 1 枚版を送る（そのままだとクイズの JS/CSS が届かず動かない）。
 
@@ -108,12 +108,12 @@ commit / push の前に、memo-factcheck スキルを最後まで読み、その
 ```bash
 BRANCH="$(python3 scripts/memo.py config branch)"   # push 先（memo.config.json）
 git fetch origin "$BRANCH"          # 遅れていれば rebase
-git add -A "$(dirname "$(python3 scripts/memo.py path NAME)")"   # build が他ページの head を更新した場合もまとめて入る
+git add -A "$(dirname "$(python3 scripts/memo.py path NAME)")"   # src/（原本）だけ。dist/ はコミットしない
 git commit -m "Add memo: <タイトル>"
 git push origin HEAD:"$BRANCH"
 ```
 
-push 後に GitHub Actions も一覧を再生成するが、ローカルで build 済みなら差分は出ない。
+push すると GitHub Actions（Deploy MEMO）が build して公開する（数分）。原本のブランチに Actions がコミットすることはない。
 
 ## 8. 報告
 
@@ -122,4 +122,4 @@ push 後に GitHub Actions も一覧を再生成するが、ローカルで buil
 - lint で直した点（あれば 1 行で）
 - 付けたクイズの問題数
 - ファクトチェックの結果（確認件数と、直した・直さなかった指摘）
-- 公開 URL: `python3 scripts/memo.py url NAME` の出力（独自ドメインは `docs/CNAME` から決まる。URL を手で組み立てない）
+- 公開 URL: `python3 scripts/memo.py url NAME` の出力（独自ドメインは `src/CNAME` から決まる。URL を手で組み立てない）
