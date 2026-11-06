@@ -12,14 +12,14 @@
   python3 scripts/memo.py list
   python3 scripts/memo.py config [KEY]                memo.config.json の設定を表示（例: config branch）
   python3 scripts/memo.py accent COLOR [LIGHT]        アクセント色を memo.config.json に書く（LIGHT を省くと自動。続けて build）
-  python3 scripts/memo.py preview MEMO|index|quiz|settings|FILE [-o OUT]   会話内プレビュー用に 1 枚へ埋め込んだ HTML を作る
+  python3 scripts/memo.py preview MEMO|index|quiz|settings|roadmap|FILE [-o OUT]   会話内プレビュー用に 1 枚へ埋め込んだ HTML を作る
 
 MEMO / NAME は「docker」「docker.html」「src/docker.html」のどれでもよい
 （既存のファイルパスを渡した場合はそのファイルを対象にする）。
 置き場所（src/）やテンプレートの場所はこのスクリプトだけが知っている。
 サイト名・リポジトリ・ブランチ・タイムゾーンなど、サイトごとの値はリポジトリ直下の memo.config.json に書く。
 
-メモ = src/ 直下の *.html（index.html・quiz.html・settings.html 以外）。src/ は原本だけを置く場所で、
+メモ = src/ 直下の *.html（index.html・quiz.html・settings.html・roadmap.html 以外）。src/ は原本だけを置く場所で、
 build は src/ を読むだけで書き換えない。公開するのは build が書き出す dist/（Actions が dist ブランチにデプロイする）。
 一覧情報は各メモの <head> 内の次のタグから読み取る:
   <title>                         タイトル（memo:title があればそちら優先）
@@ -270,7 +270,7 @@ def main() -> int:
     p.set_defaults(func=cmd_list)
 
     p = sub.add_parser("preview", help="クイズの JS/CSS や一覧データを埋め込んだ 1 枚の HTML を書き出す（会話内プレビュー用）")
-    p.add_argument("src", help="メモ名・index・quiz・settings、または下書きの HTML ファイル")
+    p.add_argument("src", help="メモ名・index・quiz・settings・roadmap、または下書きの HTML ファイル")
     p.add_argument("-o", "--out", help="出力先（省略時は一時フォルダの memo-preview/）")
     p.set_defaults(func=cmd_preview)
 

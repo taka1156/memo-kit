@@ -6,6 +6,7 @@ Claude に作ってもらった図解つきの解説ページ（HTML）を、Git
 - トップページ: `src/index.html`（メモ一覧・検索・タグ絞り込み・ランダムクイズ）
 - クイズページ: `src/quiz.html`（ランダム 10 問・カテゴリ別 10 問。最後にスコアと正答一覧、本文へのリンク）
 - 設定ページ: `src/settings.html`（アクセント色を候補から選ぶか自分で決めて試し、GitHub Actions でサイト全体に固定する。下の「アクセント色を変える」）
+- ロードマップ（オプション）: `src/roadmap.html`（書いたメモとこれから書くテーマのチェックリスト。メモを公開すると自動でチェックが付く。`memo.config.json` に `"roadmap": true` を書くと公開され、トップページからリンクされる。詳しくは [memo-detail.md の「ロードマップ（オプション）」](memo-detail.md#ロードマップオプション)）
 - AI 向けの Markdown 版: `md/` と `llms.txt`（`build` が作る。公開 URL を渡せば、リポジトリを繋いでいない会話でも Claude が過去のメモを読める）
 - 設定: `memo.config.json`（サイト名・説明・リポジトリ・ブランチ・タイムゾーン・アイコンと OGP 画像。コードやスキルには直接書かない）
 - 原本と公開物: `src/` には手で書く原本だけを置きます（単体で開いて見るものではありません）。`memo.py build` が自動生成ブロックや一覧データを入れた公開用のサイト一式を `dist/` に書き出し、GitHub Actions がその中身を **dist ブランチ**にコミットして GitHub Pages で公開します。生成物はデフォルトブランチに入りません
@@ -31,7 +32,7 @@ GitHub でこのリポジトリの「Use this template」→「Create a new repo
 ### 2. サンプルを消す
 
 ```bash
-find src -maxdepth 1 -name '*.html' ! -name index.html ! -name quiz.html ! -name settings.html -delete   # サンプルのメモ
+find src -maxdepth 1 -name '*.html' ! -name index.html ! -name quiz.html ! -name settings.html ! -name roadmap.html -delete   # サンプルのメモ
 rm -rf dist                                                                            # 生成物（build で作り直す。コミットはされない）
 ```
 

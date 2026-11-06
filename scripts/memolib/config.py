@@ -21,9 +21,13 @@ DIST = ROOT / "dist"  # build の出力。公開するサイト一式（GitHub P
 INDEX = SRC / "index.html"
 QUIZ_PAGE = SRC / "quiz.html"  # 全メモの問題から 10 問解くページ
 SETTINGS_PAGE = SRC / "settings.html"  # 管理者がアクセント色を試して、固定する手順へ進むページ
+ROADMAP_PAGE = SRC / "roadmap.html"  # 書いたメモ・これから書くテーマのチェックリスト（memos.json で自動でチェック）
 # メモではない特別なページ（一覧に載せない・メモ名に使えない）。一覧データは memos.json などから読み込む
-SPECIAL_PAGES = (INDEX, QUIZ_PAGE, SETTINGS_PAGE)
+SPECIAL_PAGES = (INDEX, QUIZ_PAGE, SETTINGS_PAGE, ROADMAP_PAGE)
 SPECIAL_NAMES = {p.name for p in SPECIAL_PAGES}
+# 使うかどうかを memo.config.json で選ぶページ（{ファイル名: 設定の項目}）。オフのときは build が dist/ に出さず、
+# ほかのページの data-memo-if="項目" の付いた要素（リンクなど）も取り除く
+OPTIONAL_PAGES = {ROADMAP_PAGE.name: "roadmap"}
 
 # memo.config.json の項目と、書かれていないときの値
 DEFAULTS: dict = {
@@ -35,6 +39,7 @@ DEFAULTS: dict = {
     "deploy_branch": "dist",      # build の出力（dist/）をデプロイするブランチ。GitHub Pages の公開元にする
     "utc_offset_hours": 0,        # 「今日」を決めるタイムゾーン（日本なら 9）
     "branding": {},               # アクセント色と、アイコン・OGP 画像の文字・色。項目は BRANDING_DEFAULTS
+    "roadmap": False,             # ロードマップ（src/roadmap.html）を公開して、トップページからリンクするか（オプション）
 }
 
 # memo.config.json の "branding" の項目。空文字は「ほかの設定から決める」
@@ -55,6 +60,7 @@ HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$")
 
 # 文字列の項目と、空を許さないもの
 STRING_KEYS = ("site_name", "description", "llms_description", "repository", "branch", "deploy_branch")
+BOOL_KEYS = ("roadmap",)
 REQUIRED_STRINGS = ("site_name", "branch", "deploy_branch")
 BRANDING_STRING_KEYS = ("title", "tagline", "url", "mark", "icon", "accent", "accent_light", "theme")
 
@@ -89,6 +95,9 @@ def load_config(path: Path = CONFIG_FILE) -> dict:
     for key in STRING_KEYS:
         if key in data and not isinstance(data[key], str):
             fail(f"{key} は文字列（\"...\"）で書いてください（いまは{_type_name(data[key])}）")
+    for key in BOOL_KEYS:
+        if key in data and not isinstance(data[key], bool):
+            fail(f"{key} は true か false で書いてください（いまは{_type_name(data[key])}）")
     for key in REQUIRED_STRINGS:
         if key in data and not data[key].strip():
             fail(f"{key} を空にはできません（書かなければ既定値 {DEFAULTS[key]!r} になります）")
@@ -191,6 +200,12 @@ def repository_warning(repository: str = REPOSITORY) -> str:
     return (f"警告: {CONFIG_FILE.name} の repository {why}。"
             "入口スキルの clone 先・トップページのリンク・公開 URL が正しくなりません。"
             "自分のリポジトリ（owner/name）に書き換えてください")
+
+
+def page_enabled(name: str, cfg: dict | None = None) -> bool:
+    """そのページを公開するか。オプションのページ（OPTIONAL_PAGES）は memo.config.json の項目で決まり、ほかは常に公開する。"""
+    key = OPTIONAL_PAGES.get(name)
+    return True if key is None else bool((cfg or CONFIG)[key])
 
 
 def today() -> str:
