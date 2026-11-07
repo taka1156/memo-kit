@@ -38,6 +38,18 @@ jobs:
         with:
           python-version: "3.12"
 
+      # memo.config.json の branch（スキルの push 先・入口スキルの clone 先）がデフォルトブランチと違うと、
+      # スキルが push しても公開されなくなる。ずれていたら止めて知らせる
+      - name: Check branch setting
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          branch="$(python3 scripts/memo.py config branch)"
+          if [ "$branch" != "$DEFAULT_BRANCH" ]; then
+            echo "::error title=branch::memo.config.json の branch（${branch}）がデフォルトブランチ（${DEFAULT_BRANCH}）と違います。branch を ${DEFAULT_BRANCH} にしてください"
+            exit 1
+          fi
+
       # テストに落ちたら公開しない（壊れた memo.py で dist ブランチを上書きしないため）。
       # 本物のメモの検査（全メモの lint など）は飛ばす。メモの指摘は下の lint の注釈と build --strict に任せる
       - name: Test

@@ -37,7 +37,7 @@ python3 scripts/memo.py new NAME   # NAME は英小文字・ハイフン（例: 
 
 ## 基本方針
 
-- **HTML 1 枚で完結**。CSS / JS はインライン。外部は Google Fonts と、必要なら cdnjs のライブラリのみ。
+- **HTML 1 枚で完結**。CSS / JS はインライン。外部は Google Fonts と、必要なら cdnjs のライブラリのみ。 cdnjs を使うときは URL に版を入れ、`integrity` と `crossorigin="anonymous"` を付ける（cdnjs のページの「Copy SRI」で取れる。無いと lint が `[要対応]` で止める）。
 - **日本語**で書く。専門用語は英語併記（例: 名前空間 (namespace)）。
 - 「読む」より「見てわかる」を優先: 図（インライン SVG / CSS ボックス）、タブ切り替え、ホバーで補足、などを使う。
 - スマホ幅（〜380px）で横スクロールが出ないこと。左右 16px 以上の余白。

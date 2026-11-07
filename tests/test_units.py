@@ -183,6 +183,16 @@ class ConfigTest(unittest.TestCase):
         for bad in ("", "  ", "notes", "a/b/c", "/notes", "repo/sample", "OWNER/REPO"):
             self.assertIn("repository", config.repository_warning(bad), bad)
 
+    def test_entry_skill_points_to_existing_routing_table(self):
+        """アプリ側の入口スキルは古いコピーのまま残るので、読む先のパスと見出しを勝手に変えない。"""
+        routing = helpers.REPO / entry.ROUTING_PATH
+        self.assertTrue(routing.is_file(), entry.ROUTING_PATH)
+        self.assertIn(f"## {entry.ROUTING_HEADING}", routing.read_text(encoding="utf-8"))
+        text = entry.entry_skill()
+        self.assertIn(entry.ROUTING_PATH, text)
+        self.assertIn(entry.ROUTING_HEADING, text)
+        self.assertNotIn("2>/dev/null ||", text, "clone の失敗を隠さない")
+
     def test_entry_skill_name_follows_skill_name_rule(self):
         self.assertEqual(entry.skill_name("alice/notes"), "notes")
         self.assertEqual(entry.skill_name("Alice/My.Notes"), "my-notes")
@@ -323,6 +333,29 @@ class QuizTest(unittest.TestCase):
 
 
 class LintTest(unittest.TestCase):
+    def test_external_scripts_need_pinned_version_and_integrity(self):
+        bad = page("<title>T</title>", '<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/latest/mermaid.min.js"></script>')
+        probs = lint.lint_text(bad, backlink=False)[2]
+        self.assertTrue(any("版が固定されていない" in p for p in probs), probs)
+        self.assertTrue(any("integrity がない" in p for p in probs), probs)
+        good = page("<title>T</title>", '<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"'
+                    ' integrity="sha384-x" crossorigin="anonymous"></script>')
+        self.assertFalse([p for p in lint.lint_text(good, backlink=False)[2] if "外部の script" in p])
+
+    def test_quiz_notes_when_answers_are_obviously_longest(self):
+        def quiz(items):
+            return page("<title>T</title>", '<script type="application/json" id="memo-quiz">'
+                        + json.dumps(items, ensure_ascii=False) + "</script>")
+        def choices(i):  # 正解の位置は散らす（全問同じ位置だと別の指摘になる）
+            c = ["短い", "別"]
+            c.insert(i % 3, "これがとても長くて具体的な正解の選択肢")
+            return c
+        long_right = [{"q": f"問{i}", "choices": choices(i), "answer": i % 3} for i in range(3)]
+        self.assertTrue(lint.quiz_notes(quiz(long_right)))
+        even = [{"q": f"問{i}", "choices": ["同じくらいの長さA", "同じくらいの長さB", "同じくらいの長さC"], "answer": i % 3}
+                for i in range(3)]
+        self.assertEqual(lint.quiz_notes(quiz(even)), [])
+
     def test_fixes_broken_css(self):
         text = page("<title>T</title><style>\n- { margin: 0 }\n\\* { padding: 0 }\n"
                     "body { font-family: ‘Noto’, “X” }\n</style>")

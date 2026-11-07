@@ -51,7 +51,7 @@ from pathlib import Path
 from memolib.config import (CONFIG, CONFIG_FILE, SRC, ROOT, SITE_URL, SPECIAL_NAMES, TEMPLATE, accents,
                             read_text, repository_warning, set_accent, today)
 from memolib.dist import dist_outputs, sync_dist
-from memolib.lint import lint_text
+from memolib.lint import lint_text, quiz_notes
 from memolib.markdown import MD_DIR
 from memolib.meta import set_meta, memo_files, memo_path, read_meta
 from memolib.site import strip_fence, preview_text
@@ -70,8 +70,11 @@ def cmd_lint(args) -> int:
                 print(f"  [{verb}] {n}")
         for p in problems:
             print(f"  [要対応] {p}")
+        notes = quiz_notes(new) if CONFIG["quiz"] else []
+        for n in notes:
+            print(f"  [注意] {n}")  # 失敗にはしない
         if not fixed and not problems:
-            print("  OK")
+            print("  OK" + ("（注意あり）" if notes else ""))
         if args.fix and new != text:
             path.write_text(new, encoding="utf-8")
         if problems or (fixed and not args.fix):
