@@ -23,8 +23,9 @@ on:
         default: true
         type: boolean
 
+# 既定は読み取りだけ。書き込み（push）するのは commit ジョブだけにする
 permissions:
-  contents: write
+  contents: read
 
 # 同じ色の変更が 2 つ同時に動かないようにする（デプロイは Deploy MEMO 側のグループで 1 本ずつ動く。
 # 呼び出し先と同じグループ名にすると、お互いを待って止まるので別の名前にする）
@@ -33,45 +34,82 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  set-accent:
+  # 色を書いた設定と画像を作る。外から入れるパッケージ（playwright・Pillow・chromium）はここでだけ動かし、
+  # このジョブには書き込みの権限も認証情報も持たせない（パッケージが乗っ取られても push できないように）
+  render:
     # デフォルトブランチから実行したときだけ（別のブランチを選んで実行しても書き換えない）
     if: github.ref_name == github.event.repository.default_branch
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # apt のフォント名と playwright の対応をそろえるため版を固定する
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
+          persist-credentials: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
-      # 画像を作り直すときだけ: render.py に必要なもの（playwright と chromium、Pillow、フォント）を入れる
+      # 画像を作り直すときだけ: render.py に必要なもの（版は branding/requirements.txt で固定）とフォントを入れる
       - name: Install image tools
         if: inputs.images
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq fonts-noto-cjk fonts-dejavu-core
-          pip install -q playwright pillow
+          pip install -q -r branding/requirements.txt
           python3 -m playwright install --with-deps chromium
 
-      - name: Set accent, commit and push
+      - name: Set accent and render images
         # 入力はシェルに直接埋め込まず、環境変数で渡す（値に記号が入っても安全に扱うため）。
         # 色の書き方が正しくなければ memo.py accent がどこが違うかを示して止まる（何もコミットしない）。
-        # push が別の push と競合したら、最新を取り込んで書き換えからやり直す（最大 3 回）。
         env:
           ACCENT: ${{ inputs.accent }}
           ACCENT_LIGHT: ${{ inputs.accent_light }}
           IMAGES: ${{ inputs.images }}
         run: |
+          python3 scripts/memo.py accent "$ACCENT" "$ACCENT_LIGHT"
+          if [ "$IMAGES" = "true" ]; then
+            python3 branding/render.py   # og.png が変わると、デプロイの build が og:image の ?v= を更新する
+          fi
+          mkdir -p "${RUNNER_TEMP}/out/src"
+          cp memo.config.json "${RUNNER_TEMP}/out/"
+          cp -r src/assets "${RUNNER_TEMP}/out/src/"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: accent
+          path: ${{ runner.temp }}/out
+          retention-days: 1
+
+  # 作った設定と画像をコミットして push する。外のパッケージは入れない
+  commit:
+    needs: render
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: accent
+          path: ${{ runner.temp }}/out
+
+      - name: Commit and push
+        # push が別の push と競合したら、最新を取り込んで、作った設定と画像を置き直してやり直す（最大 3 回）
+        env:
+          ACCENT: ${{ inputs.accent }}
+          ACCENT_LIGHT: ${{ inputs.accent_light }}
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           branch="${GITHUB_REF_NAME}"
+          out="${RUNNER_TEMP}/out"
           for attempt in 1 2 3; do
-            python3 scripts/memo.py accent "$ACCENT" "$ACCENT_LIGHT"
-            if [ "$IMAGES" = "true" ]; then
-              python3 branding/render.py   # og.png が変わると、デプロイの build が og:image の ?v= を更新する
-            fi
+            cp "${out}/memo.config.json" memo.config.json
+            cp -r "${out}/src/assets/." src/assets/
             if [ -z "$(git status --porcelain -- memo.config.json src/assets)" ]; then
               echo "すでにこの色です（デプロイだけやり直す）"
               exit 0
@@ -79,8 +117,7 @@ jobs:
             git add memo.config.json src/assets
             git commit -q -m "Set accent color: ${ACCENT}${ACCENT_LIGHT:+ / ${ACCENT_LIGHT}}"
             if git push origin "HEAD:${branch}"; then
-              echo "### アクセント色を変更しました" >> "$GITHUB_STEP_SUMMARY"
-              python3 scripts/memo.py accent "$ACCENT" "$ACCENT_LIGHT" | head -1 >> "$GITHUB_STEP_SUMMARY"
+              echo "### アクセント色を変更しました（${ACCENT}${ACCENT_LIGHT:+ / ${ACCENT_LIGHT}}）" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
             echo "::warning::push が拒否されました（別の push と競合）。最新を取り込んでやり直します（${attempt}/3）"
@@ -92,7 +129,7 @@ jobs:
 
   deploy:
     # 色を書き換えたコミットで全ページを作り直して公開する
-    needs: set-accent
+    needs: commit
     uses: ./.github/workflows/deploy.yml
     permissions:
       contents: write

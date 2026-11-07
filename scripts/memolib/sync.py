@@ -27,7 +27,7 @@ SHARED_DIRS = ("scripts", "tests", ".github/workflows")
 SHARED_FILES = (
     "memo-detail.md", "CLAUDE.md", ".gitignore",
     "src/.nojekyll", "src/assets/memo-quiz.css", "src/assets/memo-quiz.js",
-    "branding/render.py", "branding/og.html", "branding/icon.html", "branding/leaf.css",
+    "branding/render.py", "branding/requirements.txt", "branding/og.html", "branding/icon.html", "branding/leaf.css",
 )
 REVIEW_DIRS = (".claude/skills",)
 REVIEW_FILES = ("src/index.html", "src/quiz.html", "src/settings.html", "src/roadmap.html")

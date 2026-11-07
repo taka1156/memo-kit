@@ -391,6 +391,7 @@ flowchart LR
 - 実行できるのは、リポジトリに書き込み権限がある人だけです。ページは公開されていますが、見た人が色を変えることはできません。
 - ワークフローは `python3 scripts/memo.py accent COLOR [LIGHT]` で `memo.config.json` の `branding.accent`・`accent_light` だけを書き換え（ほかの項目と並び順はそのまま）、必要なら画像を作り直して `Set accent color: …` としてコミット・push し、続けて `Deploy MEMO` を呼んで全ページを作り直して公開します（Actions からの push では push で動くワークフローが起動しないため、直接呼ぶ）。色の書き方が正しくなければ、何もコミットせずに止まります。
 - 「アイコン・OGP 画像も同じ色で作り直す」（`images`。既定でオン）のときは、Actions に playwright・chromium・Pillow・フォントを入れて `branding/render.py` も動かします。そのぶん 3〜5 分かかります。画像はそのままでよければチェックを外します（1〜2 分）。
+- ジョブは 3 つに分かれています。`render`（読み取りの権限だけ。認証情報も持たない）が色を書いた設定と画像を作り、`commit`（書き込みの権限）がそれを受け取ってコミット・push し、`deploy` が公開します。外から入れるパッケージ（playwright・Pillow・chromium）は `render` でだけ動かすので、万一それらが乗っ取られても push はできません。パッケージの版は `branding/requirements.txt` で固定し、`render` の Ubuntu の版も固定しています。
 - 手元や Claude からは、`python3 scripts/memo.py accent '#3ddc97' '#0f7a50'` → `memo.config.json` をコミット・push すれば、Deploy MEMO が同じように公開します（手元の `build` は確認用）。
 
 ### アプリ側の入口スキル
@@ -433,7 +434,7 @@ flowchart LR
 - 公開 URL は `src/CNAME` の独自ドメインから決まります（無ければ `memo.config.json` の `repository` から GitHub Pages の URL `https://OWNER.github.io/REPO/` を作ります）。`og:url`・`og:image` の絶対 URL にも使います。
 - `og:image` には `og.png` の中身から作った短いハッシュ（`?v=…`）を付けます。画像を差し替えると URL が変わり、SNS 側の画像キャッシュが古いまま残るのを防げます。
 - アイコンと OGP 画像の生成元は `branding/`（`og.html`・`icon.html`・`leaf.css`）で、`python3 branding/render.py` で `src/assets/` に書き出します（`branding/` は公開されません）。文字と色は `memo.config.json`（`site_name`・`description`・公開 URL と `branding`）から差し込むので、HTML を直接書き換える必要はありません。
-- `render.py` だけは標準ライブラリでは動きません（`pip install playwright pillow` と `python3 -m playwright install chromium`、フォント Noto Sans CJK JP / DejaVu Sans Mono が必要。Ubuntu なら `apt install fonts-noto-cjk fonts-dejavu-core`）。Actions では `Set accent color` だけが動かします。それ以外の設定（サイト名・`branding` の文字など）を変えたら手元で実行し、できた画像をコミットします。`og.png` が変わると、次の `build`（デプロイ）で `og:image` の `?v=` が更新されます。
+- `render.py` だけは標準ライブラリでは動きません（`pip install -r branding/requirements.txt`（版を固定）と `python3 -m playwright install chromium`、フォント Noto Sans CJK JP / DejaVu Sans Mono が必要。Ubuntu なら `apt install fonts-noto-cjk fonts-dejavu-core`）。Actions では `Set accent color` だけが動かします。それ以外の設定（サイト名・`branding` の文字など）を変えたら手元で実行し、できた画像をコミットします。`og.png` が変わると、次の `build`（デプロイ）で `og:image` の `?v=` が更新されます。
 
 ## 表示の確認とプレビュー
 
