@@ -38,17 +38,26 @@ jobs:
         with:
           python-version: "3.12"
 
+      # テストに落ちたら公開しない（壊れた memo.py で dist ブランチを上書きしないため）。
+      # 本物のメモの検査（全メモの lint など）は飛ばす。メモの指摘は下の lint の注釈と build --strict に任せる
+      - name: Test
+        env:
+          MEMO_SKIP_REPO_TESTS: "1"
+        run: python3 -B -m unittest discover -s tests
+
+      # lint の指摘は公開を止めない（GitHub の画面から上げた HTML も一覧に載せるため）。指摘があれば注釈で目立たせる
       - name: Lint memos (report only)
         run: |
           memos=$(ls src/*.html | grep -v -e '/index.html$' -e '/quiz.html$' -e '/settings.html$' -e '/roadmap.html$' || true)
           if [ -z "$memos" ]; then
             echo "メモがまだないので lint は省略"
-          else
-            python3 scripts/memo.py lint $memos || true
+          elif ! python3 scripts/memo.py lint $memos; then
+            echo "::warning title=lint::要対応の指摘があります（公開は続けます）。上のログを見て直してください"
           fi
 
+      # --strict: クイズの崩れや、公開しないファイル（src/ の下書き・.env など）があれば止める
       - name: Build
-        run: python3 scripts/memo.py build
+        run: python3 scripts/memo.py build --strict
 
       - name: Commit dist/ to the deploy branch
         # dist/ の中身でデプロイ用ブランチを丸ごと置き換えてコミットする（履歴は残すので、生成物の変化も追える）。

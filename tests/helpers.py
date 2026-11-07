@@ -43,6 +43,12 @@ def repo_has_memos() -> bool:
     return any(p.name not in MECHANISM_DOCS for p in (REPO / "src").glob("*.html"))
 
 
+def check_real_memos() -> bool:
+    """本物のメモを確かめるテストを動かすか。メモがあり、MEMO_SKIP_REPO_TESTS が付いていないとき。
+    デプロイ前のテストは仕組みだけを確かめ、メモの状態（lint の指摘など）では公開を止めないために付ける。"""
+    return repo_has_memos() and not os.environ.get("MEMO_SKIP_REPO_TESTS")
+
+
 class Workspace:
     """一時フォルダに作ったリポジトリのコピー。with 文で使う。"""
 

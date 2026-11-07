@@ -13,6 +13,7 @@ dist/ は .gitignore 済み。Actions がこの中身をそのまま dist ブラ
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from .blocks import QUIZ_CSS, QUIZ_JS, apply_generated
@@ -27,9 +28,26 @@ _GENERATED_NAMES = {MEMOS_JSON.name, QUIZZES_JSON.name, LLMS_TXT.name}
 _GENERATED_DIRS = {MD_DIR.name}
 
 
-def _copied_files() -> list[Path]:
-    """src/ のうち、そのままコピーするファイル（ページと生成物以外）。"""
-    out = []
+_TOP_FILES = {"CNAME", ".nojekyll"}  # src/ 直下でそのまま公開するファイル（ページ以外）
+_ASSET_DIR = "assets"                 # この下のファイルはそのまま公開する（ドットファイルとバックアップは除く）
+_BACKUP_SUFFIXES = (".bak", ".orig", ".tmp", ".swp", "~")
+
+
+def _publishable(p: Path, rel: Path) -> bool:
+    """そのまま公開してよいファイルか（許可リスト）。下書き・.env・バックアップなどを公開しないため。
+    シンボリックリンクは、リンク先（src/ の外のこともある）を公開してしまうので許可しない。"""
+    if p.is_symlink() or any(parent.is_symlink() for parent in p.parents if parent != SRC and SRC in parent.parents):
+        return False
+    if len(rel.parts) == 1:
+        return rel.name in _TOP_FILES
+    return (rel.parts[0] == _ASSET_DIR and not any(part.startswith(".") for part in rel.parts)
+            and not rel.name.lower().endswith(_BACKUP_SUFFIXES))
+
+
+def _copied_files(problems: list[str] | None = None) -> list[Path]:
+    """src/ のうち、そのままコピーするファイル（ページと生成物以外）。
+    許可リスト（直下の CNAME・.nojekyll と assets/ の下）にないものは公開せず、problems に足して警告する。"""
+    out, skipped = [], []
     for p in sorted(SRC.rglob("*")):
         if not p.is_file() or "__pycache__" in p.parts:
             continue
@@ -40,20 +58,30 @@ def _copied_files() -> list[Path]:
             continue
         if not CONFIG["quiz"] and p in (QUIZ_CSS, QUIZ_JS):
             continue  # クイズがオフなら表示の CSS / JS も出さない
-        out.append(p)
+        if _publishable(p, rel):
+            out.append(p)
+        else:
+            skipped.append(rel.as_posix())
+    if skipped:
+        msg = ("公開しないファイル（src/ 直下の CNAME・.nojekyll と assets/ の下だけを公開する）: "
+               + ", ".join(skipped))
+        print(msg, file=sys.stderr)
+        if problems is not None:
+            problems.append(msg)
     return out
 
 
-def dist_outputs() -> tuple[dict[Path, bytes], int, int]:
-    """dist/ に置くべき全ファイル（{dist/ 内のパス: 中身}）と、メモの件数・問題の数。"""
+def dist_outputs(problems: list[str] | None = None) -> tuple[dict[Path, bytes], int, int]:
+    """dist/ に置くべき全ファイル（{dist/ 内のパス: 中身}）と、メモの件数・問題の数。
+    problems を渡すと、公開しないファイルやクイズの崩れの警告文をそこに足す（build --strict が使う）。"""
     want: dict[Path, bytes] = {}
-    for p in _copied_files():
+    for p in _copied_files(problems):
         want[DIST / p.relative_to(SRC)] = p.read_bytes()
     # オプションのページ（ロードマップなど）は memo.config.json でオンのときだけ出す
     pages = memo_files() + sorted(SRC / n for n in SPECIAL_NAMES if (SRC / n).is_file() and page_enabled(n))
     for p in pages:
         want[DIST / p.name] = apply_generated(read_text(p), p.name).encode("utf-8")
-    memos, quizzes = site_data()
+    memos, quizzes = site_data(problems)
     want[MEMOS_JSON] = memos_json(memos, quizzes).encode("utf-8")
     if CONFIG["quiz"]:  # クイズがオフなら全問題のファイルも作らない
         want[QUIZZES_JSON] = quizzes_json(quizzes).encode("utf-8")

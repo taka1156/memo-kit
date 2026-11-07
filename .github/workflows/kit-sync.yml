@@ -1,0 +1,54 @@
+name: Check memo-kit
+
+# テンプレートから作ったリポジトリで、仕組みのファイルが memo-kit（テンプレート元）と違っていないかを週に 1 回確かめる。
+# 違いがあれば失敗させ（通知が届く）、注釈とまとめ（Summary）に内容を出す。何も書き換えない（取り込むのは手元で memo.py sync）。
+# memo-kit 自身では動かない。memo-kit の場所はリポジトリ変数 MEMO_KIT_REPOSITORY（owner/name）で変えられる。
+on:
+  schedule:
+    - cron: "17 21 * * 0" # 毎週月曜 6:17（日本時間）
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.repository != (vars.MEMO_KIT_REPOSITORY || 'taka1156/memo-kit')
+    runs-on: ubuntu-latest
+    env:
+      KIT: ${{ vars.MEMO_KIT_REPOSITORY || 'taka1156/memo-kit' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 前回取り込んだコミットからの差分を見るので、履歴ごと取る（中身は必要な分だけ）
+      - name: Clone memo-kit
+        run: git clone -q --filter=blob:none "https://github.com/${KIT}.git" "${RUNNER_TEMP}/kit"
+
+      # 違いがあれば失敗させて通知を届ける（成功のままだと注釈に誰も気づかない）。sync 自体のエラーとは分けて表示する
+      - name: Compare
+        run: |
+          out="${RUNNER_TEMP}/sync.txt"
+          set +e
+          python3 scripts/memo.py sync "${RUNNER_TEMP}/kit" --check > "$out" 2>&1
+          rc=$?
+          set -e
+          cat "$out"
+          if ! grep -q '^仕組みのファイルの違い:' "$out"; then
+            echo "::error title=memo-kit::memo.py sync --check がエラーで止まりました（上のログを見る）"
+            exit 1
+          fi
+          if [ "$rc" -ne 0 ] || grep -q '^見比べる' "$out"; then
+            echo "::warning title=memo-kit::仕組みのファイルが memo-kit と違います。手元で python3 scripts/memo.py sync <memo-kit のフォルダ> を実行して取り込んでください"
+            {
+              echo "### memo-kit（${KIT}）との違い"
+              echo '```'
+              cat "$out"
+              echo '```'
+              echo "取り込み方: memo-kit を clone して \`python3 scripts/memo.py sync <そのフォルダ>\`。「見比べる」のファイルは差分を見て手で反映する。"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi

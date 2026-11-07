@@ -9,11 +9,15 @@ RepositoryTest だけはこのリポジトリの本物のメモを確かめ、�
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
+import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 
-from helpers import ENTRY_REL, REPO, Workspace, diff_names, repo_has_memos
+from helpers import ENTRY_REL, GIT_ENV, REPO, Workspace, check_real_memos, diff_names
 
 GENERATED_BLOCKS = (r"<!-- memo:head.*?<!-- /memo:head -->\n?", r"<!-- memo:quiz.*?<!-- /memo:quiz -->\n?")
 GENERATED_IN_DOCS = ("memos.json", "quizzes.json", "llms.txt", "md")
@@ -23,7 +27,7 @@ def remove_dist(ws: Workspace) -> None:
     shutil.rmtree(ws.dist, ignore_errors=True)
 
 
-@unittest.skipUnless(repo_has_memos(), "本物のメモがない（仕組みだけのリポジトリ）")
+@unittest.skipUnless(check_real_memos(), "本物のメモがない（仕組みだけのリポジトリ）か、MEMO_SKIP_REPO_TESTS 付き")
 class RepositoryTest(unittest.TestCase):
     """このリポジトリにコミットされている中身のテスト。"""
 
@@ -82,6 +86,55 @@ class BuildTest(unittest.TestCase):
                              (ws.src / "assets" / "memo-quiz.js").read_bytes())
             self.assertIn("<!-- memo:head", ws.read("sample.html"))
             self.assertNotIn("<!-- memo:head", (ws.src / "sample.html").read_text(encoding="utf-8"))
+
+    def test_build_publishes_only_allowed_files(self):
+        """src/ の下書き・.env・バックアップは公開しない（直下の CNAME・.nojekyll と assets/ の下だけ）。"""
+        with Workspace() as ws:
+            (ws.src / ".env").write_text("SECRET=1\n", encoding="utf-8")
+            (ws.src / "sample.html.bak").write_text("old\n", encoding="utf-8")
+            (ws.src / "drafts").mkdir()
+            (ws.src / "drafts" / "wip.html").write_text("<p>wip</p>\n", encoding="utf-8")
+            (ws.src / "assets" / "diagram.svg").write_text("<svg/>\n", encoding="utf-8")
+            (ws.src / "assets" / ".DS_Store").write_text("x", encoding="utf-8")
+            (ws.src / "assets" / "OLD.BAK").write_text("x", encoding="utf-8")
+            (ws.src / "assets" / "link.json").symlink_to(ws.root / "memo.config.json")
+            p = ws.run("build")
+            self.assertIn("公開しないファイル", p.stderr)
+            for rel in (".env", "sample.html.bak", "drafts/wip.html", "assets/.DS_Store", "assets/OLD.BAK",
+                        "assets/link.json"):
+                self.assertFalse((ws.dist / rel).exists(), rel)
+            self.assertTrue((ws.dist / "assets" / "diagram.svg").is_file())
+            self.assertTrue((ws.dist / "CNAME").is_file())
+            strict = ws.run("build", "--strict", check=False)
+            self.assertEqual(strict.returncode, 1)
+            self.assertIn("--strict", strict.stderr)
+
+    def test_build_strict_stops_on_broken_quiz(self):
+        with Workspace() as ws:
+            self.assertEqual(ws.run("build", "--strict").returncode, 0)
+            sample = ws.src / "sample.html"
+            text = sample.read_text(encoding="utf-8")
+            broken = text.replace('"answer": 0', '"answer": 99', 1)
+            self.assertNotEqual(broken, text, "サンプルに answer がない")
+            sample.write_text(broken, encoding="utf-8")
+            before = ws.snapshot("dist")
+            strict = ws.run("build", "--strict", check=False)
+            self.assertEqual(strict.returncode, 1)
+            self.assertIn("クイズに問題あり", strict.stderr)
+            self.assertEqual(diff_names(before, ws.snapshot("dist")), [], "--strict で止めたときは dist/ を書き換えない")
+            self.assertEqual(ws.run("build").returncode, 0, "--strict なしなら警告して続ける")
+
+    def test_build_strict_allows_quiz_warnings_that_still_publish(self):
+        """ref の飛び先がないなど、問題自体は出せる警告では --strict でも止めない。"""
+        with Workspace() as ws:
+            sample = ws.src / "sample.html"
+            text = sample.read_text(encoding="utf-8")
+            m = re.search(r'"ref": "(#[^"]+)"', text)
+            self.assertIsNotNone(m, "サンプルに ref がない")
+            sample.write_text(text.replace(m.group(0), '"ref": "#no-such-id"', 1), encoding="utf-8")
+            p = ws.run("build", "--strict", check=False)
+            self.assertIn("ref の飛び先", p.stderr)
+            self.assertEqual(p.returncode, 0)
 
     def test_build_is_idempotent(self):
         with Workspace() as ws:
@@ -215,6 +268,93 @@ class NewAddMetaTest(unittest.TestCase):
             p = ws.run("build", check=False)
             self.assertIn("src/broken.html: UTF-8 で読めません", p.stderr)
             self.assertNotIn("Traceback", p.stderr)
+
+
+class SyncTest(unittest.TestCase):
+    def test_sync_takes_shared_files_keeps_site_files_and_reports_skill_changes(self):
+        env = {**os.environ, **GIT_ENV}
+        git = lambda cwd, *a: subprocess.run(["git", *a], cwd=cwd, check=True, env=env, capture_output=True, text=True).stdout
+        with Workspace() as ws, tempfile.TemporaryDirectory() as tmp:
+            kit = Path(tmp) / "kit"
+            shutil.copytree(ws.root, kit, ignore=shutil.ignore_patterns(".git", "dist", "__pycache__"))
+            cfg = json.loads((kit / "memo.config.json").read_text(encoding="utf-8"))
+            (kit / "memo.config.json").write_text(json.dumps({**cfg, "repository": "repo/sample"}), encoding="utf-8")
+            (kit / "scripts" / "memolib" / "new_mod.py").write_text("X = 1\n", encoding="utf-8")
+            (kit / "memo-detail.md").write_text("# kit\n", encoding="utf-8")
+            (kit / "src" / "sample.html").write_text("kit のサンプル\n", encoding="utf-8")  # メモは取り込まない
+            for cmd in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "kit 1"]):
+                git(kit, *cmd)
+            first = git(kit, "rev-parse", "HEAD").strip()
+            (ws.root / "scripts" / "site_tool.py").write_text("\n", encoding="utf-8")  # このサイトだけのファイル
+            git(ws.root, "add", "-A")
+            git(ws.root, "commit", "-qm", "site tool")
+
+            p = ws.run("sync", str(kit), "--check", check=False)
+            self.assertEqual(p.returncode, 1, p.stdout)
+            self.assertIn("追加: scripts/memolib/new_mod.py", p.stdout)
+            self.assertIn("追加: memo-detail.md", p.stdout)
+            self.assertIn("残す: scripts/site_tool.py", p.stdout)
+            self.assertNotIn("sample.html", p.stdout)
+            self.assertFalse((ws.root / "scripts" / "memolib" / "new_mod.py").exists(), "--check は書き換えない")
+
+            ws.run("sync", str(kit))
+            self.assertTrue((ws.root / "scripts" / "memolib" / "new_mod.py").is_file())
+            self.assertTrue((ws.root / "scripts" / "site_tool.py").is_file(), "サイトだけのファイルは消さない")
+            self.assertNotEqual((ws.src / "sample.html").read_text(encoding="utf-8"), "kit のサンプル\n")
+            self.assertEqual((ws.root / ".memo-kit-sync").read_text(encoding="utf-8").strip(), first)
+            self.assertEqual(ws.run("sync", str(kit), "--check").returncode, 0)
+            git(ws.root, "add", "-A")
+            git(ws.root, "commit", "-qm", "sync 1")
+
+            # memo-kit で消したファイルは消す（前回取り込んだときにあったものだけ）。スキルの変更は見比べるに出る
+            (kit / "scripts" / "memolib" / "new_mod.py").unlink()
+            template = kit / ".claude" / "skills" / "memo-style" / "template.html"
+            template.write_text(template.read_text(encoding="utf-8") + "<!-- kit -->\n", encoding="utf-8")
+            git(kit, "commit", "-qam", "kit 2")
+            p = ws.run("sync", str(kit), "--check", check=False)
+            self.assertIn("削除: scripts/memolib/new_mod.py", p.stdout)
+            self.assertIn("残す: scripts/site_tool.py", p.stdout)
+            self.assertIn("前回取り込み以降に memo-kit で変わったもの", p.stdout)
+            self.assertIn(".claude/skills/memo-style/template.html", p.stdout)
+
+            # 上書きするファイルに未コミットの変更があれば止める
+            (ws.root / "memo-detail.md").write_text("手元の編集\n", encoding="utf-8")
+            p = ws.run("sync", str(kit), check=False)
+            self.assertNotEqual(p.returncode, 0)
+            self.assertIn("未コミットの変更", p.stderr)
+            git(ws.root, "checkout", "--", "memo-detail.md")
+            ws.run("sync", str(kit))
+            self.assertFalse((ws.root / "scripts" / "memolib" / "new_mod.py").exists())
+            git(ws.root, "add", "-A")
+            git(ws.root, "commit", "-qm", "sync 2")
+
+            # memo-kit 側が汚れている・前回より古いときは止める
+            (kit / "scripts" / "stray.py").write_text("\n", encoding="utf-8")
+            p = ws.run("sync", str(kit), "--check", check=False)
+            self.assertIn("memo-kit 側に未コミットの変更", p.stderr)
+            (kit / "scripts" / "stray.py").unlink()
+            git(kit, "checkout", "-q", first)
+            p = ws.run("sync", str(kit), "--check", check=False)
+            self.assertIn("より古いか別のブランチ", p.stderr)
+            self.assertEqual(ws.run("sync", str(kit), "--check", "--force", check=False).returncode, 1)
+
+            # 前回のコミットが履歴に無い memo-kit（浅い clone）・ほかのサイト・git でないフォルダは止める
+            shallow = Path(tmp) / "shallow"
+            git(kit, "checkout", "-q", "-")
+            git(Path(tmp), "clone", "-q", "--depth", "1", f"file://{kit}", str(shallow))
+            git(ws.root, "commit", "-q", "--allow-empty", "-m", "noop")
+            (ws.root / ".memo-kit-sync").write_text(first + "\n", encoding="utf-8")
+            p = ws.run("sync", str(shallow), "--check", check=False)
+            self.assertIn("履歴にありません", p.stderr)
+            other = json.loads((kit / "memo.config.json").read_text(encoding="utf-8"))
+            (kit / "memo.config.json").write_text(json.dumps({**other, "repository": "alice/notes"}), encoding="utf-8")
+            git(kit, "commit", "-qam", "other site")
+            p = ws.run("sync", str(kit), "--check", check=False)
+            self.assertIn("ほかのサイト", p.stderr)
+            plain = Path(tmp) / "plain"
+            shutil.copytree(kit, plain, ignore=shutil.ignore_patterns(".git"))
+            p = ws.run("sync", str(plain), "--check", check=False)
+            self.assertIn("git のリポジトリではありません", p.stderr)
 
 
 class LintTest(unittest.TestCase):

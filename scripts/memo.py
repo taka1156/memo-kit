@@ -8,8 +8,9 @@
   python3 scripts/memo.py url   [NAME]                公開 URL を表示（src/CNAME、なければ GitHub Pages の URL）
   python3 scripts/memo.py lint  MEMO... [--fix] [--backlink]
   python3 scripts/memo.py meta  MEMO [--title T] [--desc D] [--tags a,b] [--date YYYY-MM-DD]
-  python3 scripts/memo.py build [--check]             src/ から公開用のサイト一式を dist/ に書き出す（--check は古いかだけ見る）
+  python3 scripts/memo.py build [--check] [--strict]  src/ から公開用のサイト一式を dist/ に書き出す（--check は古いかだけ見る。--strict は警告があれば止める）
   python3 scripts/memo.py list
+  python3 scripts/memo.py sync  KIT [--check] [--force] memo-kit を clone したフォルダ KIT から仕組みのファイルを取り込む（--check は違いだけ）
   python3 scripts/memo.py config [KEY]                memo.config.json の設定を表示（例: config branch）
   python3 scripts/memo.py accent COLOR [LIGHT]        アクセント色を memo.config.json に書く（LIGHT を省くと自動。続けて build）
   python3 scripts/memo.py preview MEMO|index|quiz|settings|roadmap|FILE [-o OUT]   会話内プレビュー用に 1 枚へ埋め込んだ HTML を作る
@@ -54,6 +55,7 @@ from memolib.lint import lint_text
 from memolib.markdown import MD_DIR
 from memolib.meta import set_meta, memo_files, memo_path, read_meta
 from memolib.site import strip_fence, preview_text
+from memolib import sync
 
 def cmd_lint(args) -> int:
     bad = 0
@@ -113,7 +115,12 @@ def cmd_build(args) -> int:
     warning = repository_warning()
     if warning:
         print(warning, file=sys.stderr)
-    want, n_memos, n_quizzes = dist_outputs()
+    problems: list[str] = []
+    want, n_memos, n_quizzes = dist_outputs(problems)
+    if args.strict and problems:
+        what = "" if args.check else "ので dist/ を書き出さずに止めます"
+        print(f"--strict: 止める警告が {len(problems)} 件あります{what}（上の警告を直してください）", file=sys.stderr)
+        return 1
     added, changed, removed = sync_dist(want, args.check)
     names = added + changed + [f"{n}（削除）" for n in removed]
     summary = f"（{n_memos} 件、" + (f"クイズ {n_quizzes} 問）" if CONFIG["quiz"] else "クイズはオフ）")
@@ -198,6 +205,42 @@ def cmd_list(_args) -> int:
     return 0
 
 
+def cmd_sync(args) -> int:
+    """memo-kit（KIT はその clone のフォルダ）の仕組みのファイルを取り込む。--check は違いを表示するだけ。"""
+    kit = Path(args.kit).resolve()
+    probs = sync.kit_problems(kit, force=args.force)
+    if not args.check:
+        probs += sync.own_problems()
+    if probs:
+        sys.exit("止めました:\n- " + "\n- ".join(probs))
+    p = sync.plan(kit)
+    base = f"前回取り込み {p.base[:7]}" if p.base else f"前回取り込みの記録なし（{sync.BASE_FILE}）"
+    print(f"memo-kit: {p.kit_branch or '(ブランチなし)'} {p.kit_head[:7]}（{base}）")
+    for label, files in (("追加", p.added), ("更新", p.changed), ("削除", p.removed)):
+        for f in files:
+            print(f"{label}: {f}")
+    for f in p.site_only:
+        print(f"残す: {f}（このサイトだけにあるファイル。memo-kit には無い）")
+    if p.review:
+        if p.base:
+            print("見比べる（サイトごとに書き換えるファイルで、前回取り込み以降に memo-kit で変わったもの）。"
+                  f"差分: git -C {kit} diff {p.base[:7]}..{p.kit_head[:7]} -- <ファイル>")
+        else:
+            print("見比べる（サイトごとに書き換えるファイルで、memo-kit と違うもの。前回取り込みの記録が無いので全部）:")
+        for f in p.review:
+            print(f"  {f}")
+    if args.check:
+        print(f"仕組みのファイルの違い: {p.count} 件" + ("（python3 scripts/memo.py sync KIT で取り込む）" if p.count else ""))
+        return 1 if p.count else 0
+    sync.apply(kit, p)  # 違いが無くても、取り込んだ memo-kit のコミットは記録する
+    print(f"取り込んだ: {p.count} 件。{sync.BASE_FILE} を {p.kit_head[:7]} にした")
+    if p.review:
+        print("「見比べる」のファイルは次の sync からは出ないので、いま反映しておく")
+    if p.count:
+        print("テストを流してからコミットする（python3 -B -m unittest discover -s tests）")
+    return 0
+
+
 def cmd_preview(args) -> int:
     p = Path(args.src)
     if p.is_file():
@@ -256,6 +299,8 @@ def main() -> int:
 
     p = sub.add_parser("build", help="src/ から公開用のサイト一式（ページ・一覧データ・Markdown 版・入口スキル）を dist/ に書き出す")
     p.add_argument("--check", action="store_true", help="書き出さずに、dist/ が最新かだけを見る")
+    p.add_argument("--strict", action="store_true",
+                   help="クイズの崩れや公開しないファイルの警告があれば、書き出さずに終了コード 1 で止める（デプロイ用）")
     p.set_defaults(func=cmd_build)
 
     p = sub.add_parser("config", help="memo.config.json の設定を表示（KEY を付けるとその値だけ）")
@@ -269,6 +314,12 @@ def main() -> int:
 
     p = sub.add_parser("list", help="メモ一覧を表示")
     p.set_defaults(func=cmd_list)
+
+    p = sub.add_parser("sync", help="memo-kit（テンプレート元）の仕組みのファイルを取り込む")
+    p.add_argument("kit", help="memo-kit を clone したフォルダ")
+    p.add_argument("--check", action="store_true", help="取り込まずに、違いを表示するだけ（違いがあれば終了コード 1）")
+    p.add_argument("--force", action="store_true", help="memo-kit らしくない・前回より古い memo-kit でも続ける")
+    p.set_defaults(func=cmd_sync)
 
     p = sub.add_parser("preview", help="クイズの JS/CSS や一覧データを埋め込んだ 1 枚の HTML を書き出す（会話内プレビュー用）")
     p.add_argument("src", help="メモ名・index・quiz・settings・roadmap、または下書きの HTML ファイル")
