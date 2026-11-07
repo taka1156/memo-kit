@@ -282,6 +282,12 @@ class SyncTest(unittest.TestCase):
             (kit / "scripts" / "memolib" / "new_mod.py").write_text("X = 1\n", encoding="utf-8")
             (kit / "memo-detail.md").write_text("# kit\n", encoding="utf-8")
             (kit / "src" / "sample.html").write_text("kit のサンプル\n", encoding="utf-8")  # メモは取り込まない
+            (kit / "branding").mkdir(exist_ok=True)
+            (kit / "branding" / "extra.css").write_text("a{}\n", encoding="utf-8")  # 一覧に書かなくても取り込む
+            (kit / "src" / "assets" / "og.png").write_bytes(b"kit image")                 # 画像はサイトのもの
+            (kit / "README.md").write_text("kit の README\n", encoding="utf-8")            # README もサイトのもの
+            (kit / "scripts" / "memolib" / "sync.py").write_text(
+                (kit / "scripts" / "memolib" / "sync.py").read_text(encoding="utf-8") + "\n# kit\n", encoding="utf-8")
             for cmd in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "kit 1"]):
                 git(kit, *cmd)
             first = git(kit, "rev-parse", "HEAD").strip()
@@ -294,11 +300,17 @@ class SyncTest(unittest.TestCase):
             self.assertIn("追加: scripts/memolib/new_mod.py", p.stdout)
             self.assertIn("追加: memo-detail.md", p.stdout)
             self.assertIn("残す: scripts/site_tool.py", p.stdout)
-            self.assertNotIn("sample.html", p.stdout)
+            self.assertIn("追加: branding/extra.css", p.stdout)
+            self.assertIn("更新: scripts/memolib/sync.py", p.stdout)
+            for site_file in ("sample.html", "og.png", "README.md", "memo.config.json"):
+                self.assertNotIn(site_file, p.stdout)
             self.assertFalse((ws.root / "scripts" / "memolib" / "new_mod.py").exists(), "--check は書き換えない")
 
-            ws.run("sync", str(kit))
+            out = ws.run("sync", str(kit)).stdout
+            self.assertIn("もう一度 sync を実行し", out)  # sync.py 自身が新しくなったら、もう一度実行するよう知らせる
             self.assertTrue((ws.root / "scripts" / "memolib" / "new_mod.py").is_file())
+            self.assertTrue((ws.root / "branding" / "extra.css").is_file())
+            self.assertNotEqual((ws.src / "assets" / "og.png").read_bytes(), b"kit image")
             self.assertTrue((ws.root / "scripts" / "site_tool.py").is_file(), "サイトだけのファイルは消さない")
             self.assertNotEqual((ws.src / "sample.html").read_text(encoding="utf-8"), "kit のサンプル\n")
             self.assertEqual((ws.root / ".memo-kit-sync").read_text(encoding="utf-8").strip(), first)

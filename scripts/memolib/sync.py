@@ -1,20 +1,23 @@
 """memo-kit（テンプレート元）の仕組みを、テンプレートから作ったリポジトリに取り込む（memo.py sync）。
 
 テンプレートから作ったリポジトリは memo-kit と git の履歴を共有しないので、更新を merge では取り込めない。
-そこで、ファイルを 3 つに分けて扱う。
+そこで、memo-kit のファイルを 3 つに分けて扱う（取り込まないものを書くブラックリスト方式）。
 
-- SHARED: どのサイトでも同じ中身にする仕組みのファイル。sync が memo-kit の中身で上書きする
+- SITE: サイトのもの（設定・README・メモ・画像・CNAME など）。触らない
 - REVIEW: 仕組みだがサイトごとに書き換えるファイル（スキル・トップなどのページ）。sync は知らせるだけで、
   取り込むかは人が memo-kit の差分を見て決める
-- それ以外（memo.config.json・README.md・メモ・画像・CNAME など）: サイトのもの。触らない
+- それ以外はすべて仕組みのファイル。sync が memo-kit の中身で上書きする（memo-kit で足したファイルも自動で入る）
 
 取り込んだときの memo-kit のコミットを BASE_FILE に残す。これを基準に、
-- SHARED の中で消すのは「基準の時点では memo-kit にあって、今は無いファイル」だけ（サイトだけにあるファイルは残す）
+- 仕組みのファイルのうち消すのは「基準の時点では memo-kit にあって、今は無いファイル」だけ（サイトだけにあるファイルは残す）
 - REVIEW は、基準以降に memo-kit で変わったファイルだけを知らせる（記録がなければ、memo-kit と違うものを全部）
+
+パターンは「/」で区切った段ごとに照合する（`*` は 1 段の中だけ。`src/*.html` は src/ の直下だけ。末尾の `**` はその下すべて）。
 """
 from __future__ import annotations
 
 import filecmp
+import fnmatch
 import json
 import shutil
 import subprocess
@@ -23,33 +26,45 @@ from pathlib import Path
 
 from .config import ROOT
 
-SHARED_DIRS = ("scripts", "tests", ".github/workflows")
-SHARED_FILES = (
-    "memo-detail.md", "CLAUDE.md", ".gitignore",
-    "src/.nojekyll", "src/assets/memo-quiz.css", "src/assets/memo-quiz.js",
-    "branding/render.py", "branding/requirements.txt", "branding/og.html", "branding/icon.html", "branding/leaf.css",
-)
-REVIEW_DIRS = (".claude/skills",)
-REVIEW_FILES = ("src/index.html", "src/quiz.html", "src/settings.html", "src/roadmap.html")
 BASE_FILE = ".memo-kit-sync"  # 前回取り込んだ memo-kit のコミット（1 行）
+SITE_PATTERNS = (
+    "memo.config.json", "README.md", "LICENSE", BASE_FILE,
+    "src/*.html",                            # メモ（REVIEW の 4 ページは除く）
+    "src/CNAME",
+    "src/assets/*.png", "src/assets/*.ico",  # アイコン・OGP 画像（branding/render.py が設定から作る）
+    "branding/source.png",
+)
+REVIEW_PATTERNS = (
+    ".claude/skills/**",
+    "src/index.html", "src/quiz.html", "src/settings.html", "src/roadmap.html",
+)
 KIT_REPOSITORIES = {"repo/sample", "owner/repo", ""}  # memo-kit の memo.config.json の repository（テンプレートの値）
+SELF = "scripts/memolib/sync.py"
+
+
+def _match(path: str, pattern: str) -> bool:
+    parts, pats = path.split("/"), pattern.split("/")
+    if pats[-1] == "**":
+        head = pats[:-1]
+        return len(parts) > len(head) and all(fnmatch.fnmatchcase(a, b) for a, b in zip(parts, head))
+    return len(parts) == len(pats) and all(fnmatch.fnmatchcase(a, b) for a, b in zip(parts, pats))
+
+
+def is_review(path: str) -> bool:
+    return any(_match(path, p) for p in REVIEW_PATTERNS)
+
+
+def is_site(path: str) -> bool:
+    return not is_review(path) and any(_match(path, p) for p in SITE_PATTERNS)
+
+
+def is_shared(path: str) -> bool:
+    return not is_review(path) and not is_site(path)
 
 
 def _git(cwd: Path, *args: str) -> str | None:
     p = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
     return p.stdout.strip() if p.returncode == 0 else None
-
-
-def _under(path: str, dirs: tuple[str, ...]) -> bool:
-    return any(path == d or path.startswith(d + "/") for d in dirs)
-
-
-def is_shared(path: str) -> bool:
-    return _under(path, SHARED_DIRS) or path in SHARED_FILES
-
-
-def is_review(path: str) -> bool:
-    return _under(path, REVIEW_DIRS) or path in REVIEW_FILES
 
 
 def _tracked(root: Path) -> set[str]:
@@ -90,9 +105,11 @@ def kit_problems(kit: Path, root: Path = ROOT, force: bool = False) -> list[str]
     return probs
 
 
-def own_problems(root: Path = ROOT) -> list[str]:
-    """このリポジトリの、上書きするファイルに未コミットの変更があれば止める（黙って消さないため）。"""
-    p = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", *SHARED_DIRS, *SHARED_FILES],
+def own_problems(paths: list[str], root: Path = ROOT) -> list[str]:
+    """これから上書き・削除するファイル（paths）に未コミットの変更があれば止める（黙って消さないため）。"""
+    if not paths:
+        return []
+    p = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--untracked-files=all", "--", *paths],
                        capture_output=True, text=True)
     out = p.stdout.rstrip("\n") if p.returncode == 0 else ""  # 先頭の空白も状態の一部なので strip しない
     if out:
@@ -108,7 +125,7 @@ class Plan:
     added: list[str] = field(default_factory=list)
     changed: list[str] = field(default_factory=list)
     removed: list[str] = field(default_factory=list)
-    site_only: list[str] = field(default_factory=list)  # 上書きする場所にあるが、サイトだけにある（残す）
+    site_only: list[str] = field(default_factory=list)  # memo-kit にもあるフォルダの中で、サイトだけにある（残す）
     review: list[str] = field(default_factory=list)
 
     @property
@@ -134,12 +151,14 @@ def plan(kit: Path, root: Path = ROOT) -> Plan:
                        if (root / f).is_file() and not filecmp.cmp(kit / f, root / f, shallow=False))
     gone = {f for f in own_files if is_shared(f) and f not in kit_files}
     p.removed = sorted(f for f in gone if base_files is not None and f in base_files)
-    p.site_only = sorted(gone - set(p.removed))
+    kit_dirs = {f.rsplit("/", 1)[0] for f in kit_files if "/" in f}
+    # サイトだけのファイルは消さない。memo-kit にもあるフォルダの中のものだけ「残す」と知らせる（ほかは単にサイトのもの）
+    p.site_only = sorted(f for f in gone - set(p.removed) if "/" in f and f.rsplit("/", 1)[0] in kit_dirs)
     if base:
         since = _git(kit, "diff", "--name-only", f"{base}..HEAD") or ""
         p.review = sorted(f for f in since.splitlines() if f and is_review(f))
     else:
-        candidates = {f for f in kit_files if is_review(f)} | {f for f in own_files if _under(f, REVIEW_DIRS)}
+        candidates = {f for f in kit_files if is_review(f)} | {f for f in own_files if is_review(f)}
         p.review = sorted(f for f in candidates if not ((kit / f).is_file() and (root / f).is_file()
                                                         and filecmp.cmp(kit / f, root / f, shallow=False)))
     return p
