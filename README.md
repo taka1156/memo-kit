@@ -114,6 +114,7 @@ python3 -B -m unittest discover -s tests   # テスト
 | 「さっきの説明をメモにして」 | `memo-from-chat` | 会話内容をページ化して、ファクトチェックを通して登録まで |
 | 「〇〇をファクトチェックして」 | `memo-factcheck` | サブエージェントで独立に事実確認 → 指摘を報告 → 確認後に修正・push |
 | 「前に〜のメモ書いたよね」「〜のメモのここを直して」 | `memo-reference` | Markdown 版（build で作る `dist/md/`）で探して読む／直すときは HTML の該当箇所だけ編集 → 変えた箇所をファクトチェック → push |
+| 「ロードマップを作って」「次のメモを書いて」「ロードマップを見直して」 | `memo-roadmap` | ロードマップ（オプション）の項目を相談して決める／優先度の順に 1 本ずつ書いて登録 → 項目を更新 → push |
 | 「memo.py を直して」「コマンドを追加して」「リファクタして」 | `memo-maintain` | テストを流す → 変更 → 出力の前後比較・テスト → memo-detail.md を更新 → push |
 
 新しい会話では最初に「`<owner>/<name>` リポジトリで作業して」（自分のリポジトリ名）と伝えるとスキルが効きます。
@@ -133,6 +134,8 @@ python3 -B -m unittest discover -s tests   # テスト
 | 「ファクトチェックして」 | `memo-factcheck` | 指摘を確認してもらってから修正・push |
 | 「前に〜のメモ書いたよね」「メモに〜ってある？」 | `memo-reference` | しない（参照だけ） |
 | 「〜のメモのここを直して」 | `memo-reference`（部分修正） | する |
+| 「ロードマップを作って」「見直して」 | `memo-roadmap` | 項目を確認してもらってから push |
+| 「次のメモを書いて」 | `memo-roadmap`（ロードマップの順に `memo-style` で作り `memo-publish` で登録） | する |
 | 「memo.py を直して」「仕組みを変えて」 | `memo-maintain` | テストが通ってから push |
 
 メモの本文を変えて push するときは、どの流れでも push の前に `memo-factcheck` でファクトチェックします（仕組みだけの変更やタイトル・タグだけの変更は除く）。
