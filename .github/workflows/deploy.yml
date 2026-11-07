@@ -10,7 +10,7 @@ on:
     paths:
       - "src/**" # メモ・トップ・共通ファイル・画像・CNAME
       - "scripts/**" # memo.py と memolib/
-      - "memo.config.json" # サイト名・リポジトリ・ブランチ・アクセント色
+      - "memo.config.json" # サイト名・リポジトリ・ブランチ・アクセント色・ロードマップ・クイズ
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
   workflow_call: # Set accent color が設定を変えたあとに呼ぶ（Actions からの push では push のワークフローが動かないため）
