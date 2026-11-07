@@ -270,7 +270,7 @@ flowchart LR
 | `<!-- memo:head -->` 〜 `<!-- /memo:head -->` | `</head>` の直前 | ファビコン・iOS アイコン・OGP（`og:title` / `og:description` は title / description から）、アクセント色（`branding.accent`・`accent_light`） | `build`・`preview` |
 | `<!-- memo:quiz -->` 〜 `<!-- /memo:quiz -->` | フッターの直前（無ければ `</body>` の直前） | クイズ表示の枠と、`assets/memo-quiz.css`・`.js` への参照。問題データが無いメモには入らない | `build`・`preview` |
 | `data-memo-site` の付いた要素・属性 | `index.html`・`quiz.html`・`settings.html`・`roadmap.html` の書いた場所 | `memo.config.json` の値（[サイトごとの設定](#サイトごとの設定memoconfigjson)）。目印の属性は残る | `build`・`preview` |
-| `data-memo-if` の付いた要素 | `index.html` の書いた場所 | 設定の項目（`roadmap` など）がオフなら要素ごと取り除く。オンならそのまま | `build`・`preview` |
+| `data-memo-if` の付いた要素 | `index.html` の書いた場所 | 設定の項目（`quiz`・`roadmap`）がオフなら要素ごと取り除く。オンならそのまま | `build`・`preview` |
 | `<footer id="memo-backlink">` | `</body>` の直前 | 「← 一覧に戻る」リンク。スタイルはインラインで完結。これだけは原本に入る | `lint --backlink`（無いときだけ追加） |
 
 ## 確認クイズのデータの流れ
@@ -296,6 +296,7 @@ flowchart LR
 
 - `ref`（`"#見出しのid"`）があると、間違えたときに本文の該当箇所へのリンクが出ます。飛び先が閉じたタブや `<details>` の中にあれば、`memo-quiz.js` が開いてから移動します。
 - `quiz.html` のタイムアタックは、条件（ランダムかカテゴリ）に合う全問をシャッフルして、制限時間（30 秒／1 分／3 分）が切れるか問題が尽きるまで出します。答えるとすぐ次の問題に進み（正誤・解説は出さない）、結果で全問の正解と解説をまとめて見せます。残り時間はバーと秒数で表示し、条件ごとの自己ベストはブラウザ（localStorage）に保存します。カテゴリは 10 問モードと同じく複数選べます。URL は `quiz.html?mode=timeattack&time=60&tag=…&tag=…`（カテゴリごとに `tag` を並べる。10 問モードは `quiz.html?tag=…&tag=…`）で、直接開いてもはじめられます。
+- `memo.config.json` の `quiz` を `false` にすると、上の図のうち `memo:quiz` ブロック・`quizzes.json`・`quiz.html`・トップのランダムクイズをどれも作りません（[サイトごとの設定](#サイトごとの設定memoconfigjson)）。
 - 問題を直すときは各メモの問題データだけを直し、`build` で `quizzes.json` に反映します。
 
 ## AI 向けの Markdown 版
@@ -331,6 +332,7 @@ flowchart LR
 | `deploy_branch` | `build` の出力（`dist/`）をデプロイするブランチ。GitHub Pages の公開元にする（Deploy MEMO が `config deploy_branch` で読む）。`branch` と同じにはできない | `dist` |
 | `utc_offset_hours` | `meta --date` の「今日」 | `0`（日本なら `9`） |
 | `branding` | 全ページのアクセント色（`memo:head` に入る）と、アイコン・OGP 画像（`branding/render.py`）。下の表 | `{}` |
+| `quiz` | 確認クイズを使うか。`false` なら `build` が `quiz.html`・`quizzes.json`・クイズの共通 CSS / JS（`assets/memo-quiz.*`）を `dist/` に出さず、各メモにクイズの表示（`memo:quiz` ブロック）を入れず、トップページのランダムクイズ（`data-memo-if="quiz"`）を取り除く。`memos.json` の問題数は 0 になる。原本の問題データは残るので、`true` に戻して `build` すれば元どおり出る。スキルも新しいメモにクイズを書かなくなる | `true` |
 | `roadmap` | ロードマップ（`src/roadmap.html`）を公開して、トップページからリンクするか。`true` か `false`（[ロードマップ（オプション）](#ロードマップオプション)） | `false` |
 
 `branding` の中の項目（空欄はほかの設定から埋まります）:
@@ -346,7 +348,7 @@ flowchart LR
 | `accent_light` | ライトモードのページの `--accent` と、`theme: light` の画像の色 | `accent` を白地とのコントラスト比 4.5 以上になるまで暗くした色 |
 | `theme` | 画像のテーマ。`dark` か `light`（ページはライト・ダークの両方に自動で対応） | `dark` |
 
-- 書き間違い（JSON の書式、文字列であるべき項目に数値、`site_name`・`branch`・`deploy_branch` が空、`deploy_branch` が `branch` と同じ、`utc_offset_hours` が -24〜24 の外、`roadmap` が true/false 以外など）は、項目名と直し方を示して止まります（traceback は出しません）。
+- 書き間違い（JSON の書式、文字列であるべき項目に数値、`site_name`・`branch`・`deploy_branch` が空、`deploy_branch` が `branch` と同じ、`utc_offset_hours` が -24〜24 の外、`quiz`・`roadmap` が true/false 以外など）は、項目名と直し方を示して止まります（traceback は出しません）。
 - 書かなかった項目は既定値（`scripts/memolib/config.py` の `DEFAULTS`・`BRANDING_DEFAULTS`）になります。知らない項目や、`accent`・`accent_light`・`icon`・`theme` のおかしな値があるとエラーで止まります（綴りの間違いに気づけるように）。
 - アクセント色は `build` が `dist/` の全ページの `memo:head` に `<style id="memo-accent">` として入れます。各ページの `:root` の `--accent` より強い `html:root` で書くので、ページ側の値（テンプレートの既定値）は上書きされます。
 - `branding` を変えても `build` だけでは画像は変わりません。`python3 branding/render.py` で作り直します（設定ページから `Set accent color` で固定したときは、Actions が作り直します）（[日付と URL の決まり方](#日付と-url-の決まり方) の「URL」）。
@@ -546,6 +548,7 @@ python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保�
 | アイコン・OGP 画像の文字・色 | `memo.config.json`（`site_name`・`description`・`branding`） | `python3 branding/render.py` → `build` |
 | アイコン・OGP 画像のデザイン | `branding/`（`og.html`・`icon.html`・`leaf.css`、テーマの色は `render.py` の `THEMES`） | `python3 branding/render.py` → `build` |
 | トップ・クイズ・設定ページの見た目 | `src/index.html`・`src/quiz.html`・`src/settings.html` | 何もしなくてよい（サイト名などを入れる場所を増やしたら `build`） |
+| クイズを使う・やめる | `memo.config.json` の `quiz` | `build`（オフにすると `dist/` からクイズのページ・データ・表示が消える） |
 | ロードマップを使う・やめる | `memo.config.json` の `roadmap` | `build`（オフにすると `dist/` からページとリンクが消える） |
 | ロードマップの項目 | `src/roadmap.html` の `ROADMAP` | 何もしなくてよい（チェックは公開したメモから自動で付く） |
 | サイト名・説明・リポジトリ・ブランチ・タイムゾーン | `memo.config.json` | `build`（全ページ・入口スキルが書き換わる。入口スキルはアプリ側にも貼り直す） |

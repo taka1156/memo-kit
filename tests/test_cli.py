@@ -387,7 +387,7 @@ class SiteConfigTest(unittest.TestCase):
             self.assertFalse((ws.dist / "roadmap.html").exists())
             index = ws.read("index.html")
             self.assertNotIn("roadmap.html", index)
-            self.assertNotIn("data-memo-if", index)
+            self.assertNotIn('data-memo-if="roadmap"', index)
             self.assertIn('<a href="settings.html">設定</a>', index)  # ほかのリンクは残る
             self.assertEqual(ws.run("build", "--check", check=False).returncode, 0)
 
@@ -415,6 +415,47 @@ class SiteConfigTest(unittest.TestCase):
             ws.run("build")
             self.assertFalse((ws.dist / "roadmap.html").exists())
             self.assertNotIn("roadmap.html", ws.read("index.html"))
+
+    def test_quiz_is_on_by_default(self):
+        """クイズは既定でオン: quiz.html・quizzes.json・各メモのクイズ表示・トップのランダムクイズを出す。"""
+        with Workspace() as ws:
+            self.assertTrue((ws.dist / "quiz.html").exists())
+            self.assertTrue((ws.dist / "quizzes.json").exists())
+            self.assertIn("<!-- memo:quiz", ws.read("sample.html"))
+            self.assertIn('id="rq"', ws.read("index.html"))
+            self.assertGreater(sum(m["quizzes"] for m in json.loads(ws.read("memos.json"))), 0)
+
+    def test_quiz_off_generates_nothing_for_quizzes(self):
+        """quiz を false にすると、クイズに関わるものを何も生成しない（オンに戻せば元どおり）。"""
+        with Workspace() as ws:
+            cfg = self.config(ws)
+            (ws.root / "memo.config.json").write_text(json.dumps({**cfg, "quiz": False}, ensure_ascii=False),
+                                                      encoding="utf-8")
+            p = ws.run("build")
+            self.assertIn("クイズはオフ", p.stdout)
+            self.assertFalse((ws.dist / "quiz.html").exists())
+            self.assertFalse((ws.dist / "quizzes.json").exists())
+            self.assertFalse((ws.dist / "assets" / "memo-quiz.js").exists())
+            self.assertFalse((ws.dist / "assets" / "memo-quiz.css").exists())
+            sample = ws.read("sample.html")
+            self.assertNotIn("<!-- memo:quiz", sample)
+            self.assertNotIn("memo-quiz.js", sample)
+            index = ws.read("index.html")
+            self.assertNotIn('id="rq"', index)
+            self.assertNotIn("quiz.html", index)
+            self.assertNotIn('data-memo-if="quiz"', index)
+            self.assertEqual({m["quizzes"] for m in json.loads(ws.read("memos.json"))}, {0})
+            self.assertEqual(ws.run("build", "--check", check=False).returncode, 0)
+            out = ws.root / "pv.html"
+            ws.run("preview", "sample", "-o", str(out))
+            self.assertNotIn("memo-quiz-ui", out.read_text(encoding="utf-8"))
+            # 原本の問題データは残っているので、オンに戻せば元どおり出る
+            (ws.root / "memo.config.json").write_text(json.dumps(cfg, ensure_ascii=False), encoding="utf-8")
+            ws.run("build")
+            self.assertTrue((ws.dist / "quiz.html").exists())
+            self.assertTrue((ws.dist / "quizzes.json").exists())
+            self.assertTrue((ws.dist / "assets" / "memo-quiz.js").exists())
+            self.assertIn("<!-- memo:quiz", ws.read("sample.html"))
 
     def test_accent_command_then_build_changes_every_page(self):
         with Workspace() as ws:

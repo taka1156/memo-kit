@@ -4,7 +4,7 @@
 src/ のファイルのコピーに、次の生成物を加えたものになる。
 
 - 各ページ（メモ・トップ・クイズ・設定）: 自動生成ブロック（memo:head・memo:quiz）とサイト設定を差し込んだもの
-- memos.json・quizzes.json（一覧と全問題）
+- memos.json・quizzes.json（一覧と全問題。quizzes.json は memo.config.json の quiz が true のときだけ）
 - md/NAME.md・llms.txt（AI 向けの Markdown 版）
 - entry-skill/SKILL.md（アプリ側に置く入口スキル）
 
@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .blocks import apply_generated
-from .config import DIST, SRC, ENTRY_SKILL, SPECIAL_NAMES, page_enabled, read_text
+from .blocks import QUIZ_CSS, QUIZ_JS, apply_generated
+from .config import CONFIG, DIST, SRC, ENTRY_SKILL, SPECIAL_NAMES, page_enabled, read_text
 from .entry import entry_skill
 from .markdown import LLMS_TXT, MD_DIR, markdown_outputs
 from .meta import memo_files
@@ -38,6 +38,8 @@ def _copied_files() -> list[Path]:
             continue  # ページは自動生成ブロックを入れて書き出す
         if rel.parts[0] in _GENERATED_DIRS:
             continue
+        if not CONFIG["quiz"] and p in (QUIZ_CSS, QUIZ_JS):
+            continue  # クイズがオフなら表示の CSS / JS も出さない
         out.append(p)
     return out
 
@@ -53,7 +55,8 @@ def dist_outputs() -> tuple[dict[Path, bytes], int, int]:
         want[DIST / p.name] = apply_generated(read_text(p), p.name).encode("utf-8")
     memos, quizzes = site_data()
     want[MEMOS_JSON] = memos_json(memos, quizzes).encode("utf-8")
-    want[QUIZZES_JSON] = quizzes_json(quizzes).encode("utf-8")
+    if CONFIG["quiz"]:  # クイズがオフなら全問題のファイルも作らない
+        want[QUIZZES_JSON] = quizzes_json(quizzes).encode("utf-8")
     for path, text in markdown_outputs(memos).items():
         want[path] = text.encode("utf-8")
     want[ENTRY_SKILL] = entry_skill().encode("utf-8")

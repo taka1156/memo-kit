@@ -6,7 +6,7 @@ import re
 import sys
 
 from .blocks import QUIZ_CSS, QUIZ_CSS_TAG, QUIZ_JS, QUIZ_JS_TAG, apply_generated, read_quiz, validate_quiz
-from .config import DIST, SRC, SPECIAL_NAMES, read_text
+from .config import CONFIG, DIST, SRC, SPECIAL_NAMES, read_text
 from .meta import memo_files, read_meta
 
 MEMOS_JSON = DIST / "memos.json"      # 一覧（トップページと quiz.html が読む）
@@ -31,7 +31,8 @@ def quizzes_json(quizzes: list[dict]) -> str:
 def site_data() -> tuple[list[dict], list[dict]]:
     memos = sorted((read_meta(p) for p in memo_files()),
                    key=lambda m: (m["date"], m["file"]), reverse=True)
-    return memos, collect_quizzes(memos)
+    # クイズがオフなら問題を集めない（memos.json の問題数は 0、quizzes.json は作らない）
+    return memos, collect_quizzes(memos) if CONFIG["quiz"] else []
 
 
 def collect_quizzes(memos: list[dict]) -> list[dict]:
@@ -78,8 +79,9 @@ def preview_text(text: str, filename: str) -> str:
     text = text.replace(QUIZ_JS_TAG, _inline_tag("script", QUIZ_JS.read_text(encoding="utf-8")))
     if filename in SPECIAL_NAMES:
         memos, quizzes = site_data()
-        data = {MEMOS_JSON.name: json.loads(memos_json(memos, quizzes)),
-                QUIZZES_JSON.name: quizzes}
+        data = {MEMOS_JSON.name: json.loads(memos_json(memos, quizzes))}
+        if CONFIG["quiz"]:
+            data[QUIZZES_JSON.name] = quizzes
         inject = ("<script>// memo.py preview が埋め込んだデータ（公開版は JSON ファイルを読み込む）\n"
                   "window.MEMO_DATA = " + json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
                   + ";\n</script>\n")

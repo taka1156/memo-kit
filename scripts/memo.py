@@ -31,6 +31,7 @@ build は src/ を読むだけで書き換えない。公開するのは build �
 表示用の UI は build が dist/ のページの末尾に入れる（CSS / JS 本体は src/assets/memo-quiz.*）。
 build は一覧を dist/memos.json、全問題を dist/quizzes.json、Markdown 版を dist/md/ と dist/llms.txt に書き出し、
 トップページと quiz.html はそれらを読み込んで表示する。
+memo.config.json の quiz が false なら、quizzes.json・quiz.html・クイズの表示は作らない。
 あわせて、アプリ（claude.ai）に置く入口スキル dist/entry-skill/SKILL.md も memo.config.json から生成する。
 
 このファイルはコマンドの入口だけで、処理の本体は scripts/memolib/ にある。
@@ -115,7 +116,7 @@ def cmd_build(args) -> int:
     want, n_memos, n_quizzes = dist_outputs()
     added, changed, removed = sync_dist(want, args.check)
     names = added + changed + [f"{n}（削除）" for n in removed]
-    summary = f"（{n_memos} 件、クイズ {n_quizzes} 問）"
+    summary = f"（{n_memos} 件、" + (f"クイズ {n_quizzes} 問）" if CONFIG["quiz"] else "クイズはオフ）")
     if args.check:
         if names:
             shown = ", ".join(names[:10]) + (f" ほか {len(names) - 10} ファイル" if len(names) > 10 else "")

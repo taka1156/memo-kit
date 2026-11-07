@@ -47,6 +47,7 @@ rm -rf dist                                                                     
   "branch": "main",
   "deploy_branch": "dist",
   "utc_offset_hours": 9,
+  "quiz": true,
   "branding": { "accent": "#00d4ff", "accent_light": "#0077b6", "theme": "dark" }
 }
 ```
@@ -54,6 +55,7 @@ rm -rf dist                                                                     
 - `repository` は自分の `owner/name`。テンプレートの値（`repo/sample`）のままだと `build` が警告します。
 - `branch` はリポジトリのデフォルトブランチ（原本を置く。スキルの push 先）。
 - `deploy_branch` は `build` の出力を置く公開用のブランチ（既定 `dist`。Actions が作る）。`branch` と同じにはできません。
+- `quiz` は確認クイズを使うか（既定 `true`）。`false` にすると、クイズのページ（`quiz.html`）・全問題のデータ・各メモのクイズ表示・トップページのランダムクイズを作らず、スキルも新しいメモにクイズを書きません。
 - 書き間違い（JSON の書式・型・範囲）は、`memo.py` を実行したときにどの項目をどう直すかを示して止まります。
 - `branding` はサイト全体のアクセント色と、アイコン・OGP 画像の文字・色です。
   - `accent` はダークモード、`accent_light` はライトモードのアクセント色。全ページ（トップ・クイズ・各メモ）に `build` が反映し（`dist/` 側のページ）、画像にも同じ色を使います。`accent_light` を省くと、`accent` を白地で読める濃さまで自動で暗くします。

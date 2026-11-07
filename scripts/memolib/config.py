@@ -27,7 +27,7 @@ SPECIAL_PAGES = (INDEX, QUIZ_PAGE, SETTINGS_PAGE, ROADMAP_PAGE)
 SPECIAL_NAMES = {p.name for p in SPECIAL_PAGES}
 # 使うかどうかを memo.config.json で選ぶページ（{ファイル名: 設定の項目}）。オフのときは build が dist/ に出さず、
 # ほかのページの data-memo-if="項目" の付いた要素（リンクなど）も取り除く
-OPTIONAL_PAGES = {ROADMAP_PAGE.name: "roadmap"}
+OPTIONAL_PAGES = {QUIZ_PAGE.name: "quiz", ROADMAP_PAGE.name: "roadmap"}
 
 # memo.config.json の項目と、書かれていないときの値
 DEFAULTS: dict = {
@@ -39,6 +39,7 @@ DEFAULTS: dict = {
     "deploy_branch": "dist",      # build の出力（dist/）をデプロイするブランチ。GitHub Pages の公開元にする
     "utc_offset_hours": 0,        # 「今日」を決めるタイムゾーン（日本なら 9）
     "branding": {},               # アクセント色と、アイコン・OGP 画像の文字・色。項目は BRANDING_DEFAULTS
+    "quiz": True,                 # 確認クイズを使うか。false なら quiz.html・quizzes.json・各メモのクイズ表示・トップのランダムクイズを作らない
     "roadmap": False,             # ロードマップ（src/roadmap.html）を公開して、トップページからリンクするか（オプション）
 }
 
@@ -60,7 +61,7 @@ HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$")
 
 # 文字列の項目と、空を許さないもの
 STRING_KEYS = ("site_name", "description", "llms_description", "repository", "branch", "deploy_branch")
-BOOL_KEYS = ("roadmap",)
+BOOL_KEYS = ("quiz", "roadmap")
 REQUIRED_STRINGS = ("site_name", "branch", "deploy_branch")
 BRANDING_STRING_KEYS = ("title", "tagline", "url", "mark", "icon", "accent", "accent_light", "theme")
 
