@@ -111,6 +111,8 @@ class ConfigTest(unittest.TestCase):
             '{"repository": null}': "repository は文字列",
             '{"branding": {"mark": 1}}': "branding.mark は文字列",
             '{"sitename": "x"}': "使える項目",
+            '{"roadmap": "yes"}': "roadmap は true か false",
+            '{"roadmap": 1}': "roadmap は true か false",
         }
         with tempfile.TemporaryDirectory() as d:
             f = Path(d) / "memo.config.json"
@@ -126,6 +128,13 @@ class ConfigTest(unittest.TestCase):
             self.assertIn("UTF-8", str(cm.exception))
             f.write_text('{"utc_offset_hours": -3.5, "branch": "trunk"}', encoding="utf-8")
             self.assertEqual(config.load_config(f)["utc_offset_hours"], -3.5)  # 小数・負の数は使える
+
+    def test_optional_pages_follow_config(self):
+        self.assertFalse(config.page_enabled("roadmap.html", {**config.DEFAULTS}))
+        self.assertTrue(config.page_enabled("roadmap.html", {**config.DEFAULTS, "roadmap": True}))
+        self.assertTrue(config.page_enabled("settings.html", {**config.DEFAULTS}))  # オプションでないページは常に出す
+        self.assertTrue(set(config.OPTIONAL_PAGES) <= config.SPECIAL_NAMES)
+        self.assertTrue(set(config.OPTIONAL_PAGES.values()) <= set(config.DEFAULTS))
 
     def test_read_text_reports_non_utf8_file(self):
         import tempfile
@@ -444,6 +453,24 @@ class SiteFieldsTest(unittest.TestCase):
             out = blocks.apply_site('<h1 data-memo-site="{site_name}">x</h1><meta content="" data-memo-site-content="{site_name}">')
             self.assertIn('>A &amp; "B" &lt;C&gt;</h1>', out)
             self.assertIn('content="A &amp; &quot;B&quot; &lt;C&gt;"', out)
+        finally:
+            blocks.CONFIG.clear()
+            blocks.CONFIG.update(orig)
+
+    def test_optional_elements_are_removed_only_when_off(self):
+        src = ('<footer>\n    <a href="a.html">A</a>\n'
+               '    <span data-memo-if="roadmap">· <a href="roadmap.html">ロードマップ</a></span>\n'
+               '    · <a href="settings.html">設定</a>\n</footer>')
+        orig = dict(blocks.CONFIG)
+        try:
+            blocks.CONFIG["roadmap"] = False
+            out = blocks.apply_site(src)
+            self.assertEqual(out, '<footer>\n    <a href="a.html">A</a>\n    · <a href="settings.html">設定</a>\n</footer>')
+            self.assertEqual(blocks.apply_site(out), out)
+            blocks.CONFIG["roadmap"] = True
+            self.assertEqual(blocks.apply_site(src), src)  # オンなら何も変えない
+            with self.assertRaises(SystemExit):
+                blocks.apply_site('<span data-memo-if="nope">x</span>')
         finally:
             blocks.CONFIG.clear()
             blocks.CONFIG.update(orig)

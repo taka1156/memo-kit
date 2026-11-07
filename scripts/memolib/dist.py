@@ -16,7 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .blocks import apply_generated
-from .config import DIST, SRC, ENTRY_SKILL, SPECIAL_NAMES, read_text
+from .config import DIST, SRC, ENTRY_SKILL, SPECIAL_NAMES, page_enabled, read_text
 from .entry import entry_skill
 from .markdown import LLMS_TXT, MD_DIR, markdown_outputs
 from .meta import memo_files
@@ -47,7 +47,8 @@ def dist_outputs() -> tuple[dict[Path, bytes], int, int]:
     want: dict[Path, bytes] = {}
     for p in _copied_files():
         want[DIST / p.relative_to(SRC)] = p.read_bytes()
-    pages = memo_files() + sorted(SRC / n for n in SPECIAL_NAMES if (SRC / n).is_file())
+    # オプションのページ（ロードマップなど）は memo.config.json でオンのときだけ出す
+    pages = memo_files() + sorted(SRC / n for n in SPECIAL_NAMES if (SRC / n).is_file() and page_enabled(n))
     for p in pages:
         want[DIST / p.name] = apply_generated(read_text(p), p.name).encode("utf-8")
     memos, quizzes = site_data()
