@@ -66,10 +66,10 @@ git clone --depth 1 -b {branch} https://github.com/{repo}.git {folder}
 
 ```bash
 git -C {folder} status --porcelain                       # 未コミットの変更
-git -C {folder} log --oneline origin/{branch}..HEAD 2>/dev/null  # push していないコミット
+git -C {folder} log --oneline origin/{branch}..HEAD     # push していないコミット
 ```
 
-どちらかに何か出たら、前の作業が残っている。消さずに、そのことをユーザーに伝えて、続けるか捨てるかを確認する。何も出なければ最新にそろえる。
+どちらかに何か出たら（エラーが出たときも。`origin/{branch}` が無い・別のブランチで clone したフォルダなど）、前の作業が残っているかもしれない。消さずに、そのことをユーザーに伝えて、続けるか捨てるかを確認する。どちらも何も出なければ最新にそろえる。
 
 ```bash
 git -C {folder} fetch -q --depth 1 origin {branch} && git -C {folder} checkout -q -B {branch} FETCH_HEAD

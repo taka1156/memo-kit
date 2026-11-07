@@ -101,6 +101,7 @@ python3 -B -m unittest discover -s tests   # テスト
 
 | 用途 | 必要なもの |
 | --- | --- |
+| 仕組みのページの JS のテスト（`npm test`。仕組みを直すときだけ） | Node.js 22.12 以上（22・24・26 などの偶数の版） |
 | `scripts/memo.py`（登録・点検・生成）とテスト | Python 3.8 以上（標準ライブラリのみ。テストは 3.11・3.12 で確認、GitHub Actions は 3.12）、git |
 | 公開 | GitHub Pages（dist ブランチを公開）、GitHub Actions（build・デプロイとテスト） |
 | ページの表示 | 閲覧者のブラウザが Google Fonts（`fonts.googleapis.com` の Noto Sans JP・JetBrains Mono）を読み込みます。読めないときはシステムのフォントで表示されます。メモによっては cdnjs のライブラリを使います（[memo-style](.claude/skills/memo-style/SKILL.md)） |

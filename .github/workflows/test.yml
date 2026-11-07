@@ -1,6 +1,6 @@
 name: Test memo.py
 
-# scripts/（memo.py・memolib）やテストを変えたら、テストを流す。
+# scripts/（memo.py・memolib）や仕組みのページの JS、テストを変えたら、テストを流す（Python と JS の両方）。
 # テストはリポジトリを一時フォルダにコピーして動かすので、リポジトリ自体は書き換えない。
 # ブランチ名は書かない（どのブランチへの push でも流す）。
 on:
@@ -9,6 +9,10 @@ on:
       - "scripts/**"
       - "tests/**"
       - "src/assets/memo-quiz.*"
+      - "src/assets/memo-site.js"
+      - "package.json"
+      - "package-lock.json"
+      - "vitest.config.mjs"
       - "src/index.html"
       - "src/quiz.html"
       - "src/settings.html"
@@ -21,6 +25,10 @@ on:
       - "scripts/**"
       - "tests/**"
       - "src/assets/memo-quiz.*"
+      - "src/assets/memo-site.js"
+      - "package.json"
+      - "package-lock.json"
+      - "vitest.config.mjs"
       - "src/index.html"
       - "src/quiz.html"
       - "src/settings.html"
@@ -45,3 +53,14 @@ jobs:
 
       - name: Unit and integration tests
         run: python3 -m unittest discover -s tests -v
+
+      # 仕組みのページの JS（src/assets/memo-site.js・memo-quiz.js）のテスト。memo.py 自体は Node に依存しない
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: JS tests
+        run: |
+          npm ci --no-audit --no-fund
+          npm test

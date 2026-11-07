@@ -333,6 +333,11 @@ class QuizTest(unittest.TestCase):
 
 
 class LintTest(unittest.TestCase):
+    def test_template_left_as_is_is_reported(self):
+        template = (helpers.REPO / ".claude" / "skills" / "memo-style" / "template.html").read_text(encoding="utf-8")
+        probs = lint.lint_text(template, backlink=False)[2]
+        self.assertTrue(any("テンプレートの仮の文" in p for p in probs), probs)
+
     def test_external_scripts_need_pinned_version_and_integrity(self):
         bad = page("<title>T</title>", '<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/latest/mermaid.min.js"></script>')
         probs = lint.lint_text(bad, backlink=False)[2]
@@ -407,6 +412,11 @@ class MarkdownTest(unittest.TestCase):
         for hidden in (".a{}", "秘密の問題", "確認クイズ", "一覧に戻る"):
             self.assertNotIn(hidden, md)
 
+    def test_sup_and_sub_are_kept_readable(self):
+        md = markdown.html_to_markdown(page("<title>T</title>", "<p>2<sup>53</sup>−1 と H<sub>2</sub>O</p>"))
+        self.assertIn("2^53−1", md)
+        self.assertIn("H_2O", md)
+
     def test_memo_markdown_has_header_and_no_duplicate_title(self):
         m = {"file": "p.html", "title": "見出し", "desc": "説明", "tags": ["a"], "date": "2026-01-01"}
         md = markdown.memo_markdown(page(body="<h1>見出し</h1><p>本文</p>"), m)
@@ -461,6 +471,18 @@ class SiteTest(unittest.TestCase):
         counter.feed(out)
         self.assertEqual(counter.starts.get("script"), 2)  # 埋め込んだクイズの JS と問題データ
         self.assertIn(blocks.QUIZ_JS.read_text(encoding="utf-8").strip()[:40], out)
+
+    def test_preview_of_site_pages_inlines_shared_js(self):
+        for name in ("index.html", "quiz.html", "settings.html", "roadmap.html"):
+            out = site.preview_text((config.SRC / name).read_text(encoding="utf-8"), name)
+            self.assertNotIn(blocks.SITE_JS_TAG, out, name)
+            self.assertIn("root.MemoSite = api", out, name)
+
+    def test_light_accent_matches_js_table(self):
+        """設定ページ（assets/memo-site.js の lightAccent）と同じ答えになること。表は tests/js/ でも使う。"""
+        cases = json.loads((helpers.FIXTURES / "accents.json").read_text(encoding="utf-8"))["cases"]
+        for color, light in cases.items():
+            self.assertEqual(config.light_accent(color), light, color)
 
     def test_inline_tag_escapes_its_closing_tag(self):
         self.assertEqual(site._inline_tag("script", "a</script>b"), "<script>\na<\\/script>b\n</script>")

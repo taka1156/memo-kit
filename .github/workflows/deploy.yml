@@ -51,6 +51,7 @@ jobs:
           fi
 
       # テストに落ちたら公開しない（壊れた memo.py で dist ブランチを上書きしないため）。
+      # JS のテスト（npm）はここでは動かさない（書き込み権限のあるジョブで外のパッケージを動かさないため。test.yml が流す）。
       # 本物のメモの検査（全メモの lint など）は飛ばす。メモの指摘は下の lint の注釈と build --strict に任せる
       - name: Test
         env:
@@ -60,10 +61,7 @@ jobs:
       # lint の指摘は公開を止めない（GitHub の画面から上げた HTML も一覧に載せるため）。指摘があれば注釈で目立たせる
       - name: Lint memos (report only)
         run: |
-          memos=$(ls src/*.html | grep -v -e '/index.html$' -e '/quiz.html$' -e '/settings.html$' -e '/roadmap.html$' || true)
-          if [ -z "$memos" ]; then
-            echo "メモがまだないので lint は省略"
-          elif ! python3 scripts/memo.py lint $memos; then
+          if ! python3 scripts/memo.py lint --all; then
             echo "::warning title=lint::要対応の指摘があります（公開は続けます）。上のログを見て直してください"
           fi
 

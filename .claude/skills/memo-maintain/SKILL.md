@@ -11,7 +11,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 ## 守ること
 
 - **依存してよいのは memo-kit だけ。** ほかのサイト（同じ memo-kit から作った姉妹サイトなど）の URL・`llms.txt`・リポジトリを、スキル・スクリプト・ワークフロー・ページから参照しない。サイトが増えるたびに全サイトを直すことになる。
-- **標準ライブラリだけ。** pip で何かを入れないと動かない形にしない（BeautifulSoup・pytest なども使わない。テストは `unittest`）。
+- **標準ライブラリだけ。** pip で何かを入れないと動かない形にしない（BeautifulSoup・pytest なども使わない。テストは `unittest`）。仕組みのページの JS のテストだけは Node の vitest を使う（`npm test`。`memo.py` は Node に依存しない）。
 - **入口は `python3 scripts/memo.py` のまま。** スキル・README・Actions がこの呼び方に依存している。処理の本体は `scripts/memolib/` に置き、`memo.py` はコマンドの受け付けだけにする。
 - **置き場所を知っているのは `memolib/config.py` だけ。** 他のモジュールやスキルでパスを組み立てない。
 - **サイトごとの値は `memo.config.json` だけ。** サイト名・リポジトリ・ブランチ・タイムゾーン・ドメイン・アクセント色を、コード・スキル・ワークフロー・`index.html`／`quiz.html`／`settings.html` に直接書かない（ページには `data-memo-site` の目印を付けて `build` に入れさせる。スキルは `memo.py config KEY` で読む）。仕組みだけを別のリポジトリに持っていけるようにするため。
@@ -30,7 +30,9 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 | `memolib/meta.py` | `<head>` のメタ情報の読み書き、名前からパスへの解決 |
 | `memolib/blocks.py` | 自動生成ブロック（memo:head・memo:quiz）、サイト設定の差し込み（`apply_site`）、フッター、クイズの問題データの検証 |
 | `memolib/entry.py` | アプリ側の入口スキル（`dist/entry-skill/SKILL.md`）の中身 |
-| `src/settings.html` の JS | アクセント色の候補（`PRESETS`）と、ライト用の自動計算（`config.light_accent` と同じ式。変えたら両方を直す） |
+| `src/settings.html` の JS | アクセント色の候補（`PRESETS`）と画面の動き。色の計算は `memo-site.js` |
+| `src/assets/memo-site.js` | 仕組みのページ（index・quiz・settings・roadmap）で共通の処理: 読み込み・エスケープ・シャッフル・出題の条件・選択肢のボタン・色の計算（`lightAccent` は `config.light_accent` と同じ式。変えたら両方を直す。`tests/fixtures/accents.json` で突き合わせる） |
+| `tests/js/` | JS のテスト（vitest。`npm ci` のあと `npm test`） |
 | `memolib/lint.py` | 崩れのチェックと自動修正 |
 | `memolib/markdown.py` | AI 向けの Markdown 版 |
 | `memolib/site.py` | memos.json・quizzes.json、会話内プレビュー用の 1 枚の HTML |
@@ -50,6 +52,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 python3 -B -m unittest discover -s tests      # 全部通ることを先に確かめる（15 秒ほど）
+npm ci && npm test                            # 仕組みのページや src/assets の JS を変えるときは、こちらも
 ```
 
 通らなければ、変更を始める前にその原因を伝える。
@@ -80,6 +83,7 @@ diff -r <スクラッチパッド>/before <スクラッチパッド>/after   # �
 
 ```bash
 python3 -B -m unittest discover -s tests          # 全部通る
+npm test                                          # ページや src/assets の JS を変えたとき
 python3 -B scripts/memo.py build && git status --short   # dist/ を作り直しても src/ に差分が出ない
 python3 -B -m py_compile scripts/memo.py scripts/memolib/*.py tests/*.py
 ```

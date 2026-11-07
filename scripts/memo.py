@@ -6,7 +6,7 @@
   python3 scripts/memo.py add   SRC NAME [--force]    外部の HTML を src/NAME.html として取り込む
   python3 scripts/memo.py path  NAME [--md]           src/NAME.html（--md なら dist/md/NAME.md）の絶対パスを表示
   python3 scripts/memo.py url   [NAME]                公開 URL を表示（src/CNAME、なければ GitHub Pages の URL）
-  python3 scripts/memo.py lint  MEMO... [--fix] [--backlink]
+  python3 scripts/memo.py lint  MEMO... | --all [--fix] [--backlink]
   python3 scripts/memo.py meta  MEMO [--title T] [--desc D] [--tags a,b] [--date YYYY-MM-DD]
   python3 scripts/memo.py build [--check] [--strict]  src/ から公開用のサイト一式を dist/ に書き出す（--check は古いかだけ見る。--strict は警告があれば止める）
   python3 scripts/memo.py list
@@ -58,8 +58,14 @@ from memolib.site import strip_fence, preview_text
 from memolib import sync
 
 def cmd_lint(args) -> int:
+    if args.all == bool(args.files):
+        sys.exit("lint にはメモを指定するか、--all を付けてください（両方は指定できません）")
+    files = [str(p) for p in memo_files()] if args.all else args.files
+    if not files:
+        print("メモがまだないので lint は省略")
+        return 0
     bad = 0
-    for f in args.files:
+    for f in files:
         path = memo_path(f)
         text = read_text(path)
         new, fixed, problems = lint_text(text, args.backlink)
@@ -245,7 +251,8 @@ def cmd_sync(args) -> int:
         print(f"{sync.SELF}（取り込む・取り込まないの決まり）も新しくなったので、コミットしてからもう一度 sync を実行し、"
               "取り込み漏れがないか確かめる")
     if p.count:
-        print("テストを流してからコミットする（python3 -B -m unittest discover -s tests）")
+        print("テストを流してからコミットする（python3 -B -m unittest discover -s tests と npm ci && npm test）。"
+              "「見比べる」に出た src/ のページは、テストが通るよう同じコミットで反映する")
     return 0
 
 
@@ -292,7 +299,8 @@ def main() -> int:
     p.set_defaults(func=cmd_url)
 
     p = sub.add_parser("lint", help="崩れチェック（--fix で修正）")
-    p.add_argument("files", nargs="+")
+    p.add_argument("files", nargs="*", help="メモ（--all なら省く）")
+    p.add_argument("--all", action="store_true", help="全メモ（トップ・クイズ・設定・ロードマップのページは除く）")
     p.add_argument("--fix", action="store_true")
     p.add_argument("--backlink", action="store_true", help="フッターに「一覧に戻る」リンクを追加")
     p.set_defaults(func=cmd_lint)

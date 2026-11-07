@@ -40,6 +40,7 @@ python3 scripts/memo.py new NAME   # NAME は英小文字・ハイフン（例: 
 - **HTML 1 枚で完結**。CSS / JS はインライン。外部は Google Fonts と、必要なら cdnjs のライブラリのみ。 cdnjs を使うときは URL に版を入れ、`integrity` と `crossorigin="anonymous"` を付ける（cdnjs のページの「Copy SRI」で取れる。無いと lint が `[要対応]` で止める）。
 - **日本語**で書く。専門用語は英語併記（例: 名前空間 (namespace)）。
 - 「読む」より「見てわかる」を優先: 図（インライン SVG / CSS ボックス）、タブ切り替え、ホバーで補足、などを使う。
+- タップや切り替えで出す説明文も HTML に書いておき、JS は表示の出し入れだけにする。JS の文字列の中だけに書いた文章は Markdown 版に入らず、参照やファクトチェックで読み落とされる（既存のメモはそのままでよい）。
 - スマホ幅（〜380px）で横スクロールが出ないこと。左右 16px 以上の余白。
 
 ## デザイントークン
@@ -152,4 +153,7 @@ python3 scripts/memo.py preview 下書き.html -o <スクラッチパッド>/NAM
 
 ## 書き終えたら
 
-memo-publish の手順 4 以降（lint → meta → build → ファクトチェック → commit/push → 報告）で登録する（`new` で作ったので取り込み手順 3 は不要）。
+保存を頼まれているか（`.claude/skills/ROUTING.md` の「保存するかどうか」）で分ける。
+
+- 頼まれていない（「作って」「まとめて」だけ）: 上の「会話内でプレビューするとき」の手順で見せて、保存するかを聞く。ここで止める。
+- 頼まれている: memo-publish の手順 4 以降（lint → meta → build → プレビュー → ファクトチェック → commit/push → 報告）で登録する（`new` で作ったので取り込み手順 3 は不要）。

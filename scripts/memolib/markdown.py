@@ -148,6 +148,8 @@ class _ToMarkdown(HTMLParser):
         elif tag == "a":
             self.space()
             self.links.append((len(self.line), a.get("href", "")))
+        elif tag in ("sup", "sub"):
+            self.line.append("^" if tag == "sup" else "_")  # 2<sup>53</sup> → 2^53（そのままだと 253 に読めてしまう）
         elif tag in _MD_BLOCKS:
             self.flush()
         elif tag in _MD_SPACED:

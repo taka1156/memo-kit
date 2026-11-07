@@ -220,7 +220,10 @@ footer a { color: var(--accent); }
   <footer><a href="index.html" data-memo-site="{site_name} 一覧">MemoKit 一覧</a></footer>
 </div>
 
+<script src="assets/memo-site.js"></script>
 <script>
+// 共通の処理は assets/memo-site.js（MemoSite）
+const { esc, loadJSON } = MemoSite;
 // ── ロードマップの定義 ─────────────────────────────
 // 書いたメモは file だけでよい（タイトルは memos.json から取る）。
 // 未着手のテーマは title・prio・note を書く。alt は別名でも済みにしたいときのファイル名。
@@ -239,17 +242,7 @@ const SELF = (location.pathname.split('/').pop() || 'roadmap.html');
 const IGNORE = new Set(['roadmap.html', SELF, 'index.html', 'quiz.html', 'settings.html']);
 const PRIO_LABEL = { high: '高', mid: '中', low: '低' };
 
-// ── 一覧データの読み込み ───────────────────────────
-// 公開版は memos.json を読む。memo.py preview などで埋め込まれた window.MEMO_DATA があればそれを使う
-async function loadMemos() {
-  if (window.MEMO_DATA && window.MEMO_DATA['memos.json']) return window.MEMO_DATA['memos.json'];
-  const res = await fetch('memos.json', { cache: 'no-cache' });
-  if (!res.ok) throw new Error('memos.json: HTTP ' + res.status);
-  return res.json();
-}
-
-const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
+// 一覧データは公開版なら memos.json、memo.py preview の 1 枚版なら埋め込まれた window.MEMO_DATA（MemoSite.loadJSON）
 
 function render(memos) {
   const byFile = new Map(memos.map(m => [m.file, m]));
@@ -334,7 +327,7 @@ document.querySelector('.filters').addEventListener('click', e => {
   if (b) applyFilter(b.dataset.filter);
 });
 
-loadMemos().then(render).catch(err => {
+loadJSON('memos.json').then(render).catch(err => {
   document.getElementById('areas').innerHTML =
     `<div class="panel err"><p>一覧データ（<code>memos.json</code>）を読み込めなかったので、チェックを付けられません。</p>
      <p class="msg">公開サイト上で開くか、<code>memo.py build</code> の出力（<code>dist/</code>）から開いてください。（${esc(err.message)}）</p></div>`;
