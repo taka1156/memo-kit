@@ -13,6 +13,10 @@ from .config import BRANCH, REPOSITORY, SITE_NAME
 SKILL_NAME_MAX = 64  # スキル名の長さの上限
 
 ENTRY_NOTE = "<!-- scripts/memo.py build が memo.config.json から自動生成。手で編集しない -->"
+# 入口スキルが読む振り分けの表。アプリ側の入口スキルは貼り付けたままの古いコピーなので、
+# パスや見出しを変えるとアプリ側が黙って壊れる（tests が ROUTING.md に実在するかを確かめる）
+ROUTING_PATH = ".claude/skills/ROUTING.md"
+ROUTING_HEADING = "アプリ（claude.ai）の入口スキルから使うとき"
 
 
 def skill_name(repository: str) -> str:
@@ -27,6 +31,7 @@ def entry_skill() -> str:
     folder = repo.split("/")[-1]  # clone 先のフォルダ名（git clone の既定と同じ）
     name = skill_name(repo)
     raw = f"https://raw.githubusercontent.com/{repo}/{BRANCH}"
+    branch = BRANCH
     return f"""---
 name: "{name}"
 description: "{repo}（{SITE_NAME}）に関する依頼の入口。HTMLで図解してまとめる、{SITE_NAME}に保存、ファクトチェックなど。手順はGitHubのリポジトリから取得して従う。"
@@ -51,22 +56,35 @@ description: "{repo}（{SITE_NAME}）に関する依頼の入口。HTMLで図解
 
 ### 1. リポジトリを取得する
 
-作業用ディレクトリに浅くクローンする（すでにあれば更新）。
+作業用ディレクトリに `{branch}` ブランチを浅くクローンする。
 
 ```bash
-git clone --depth 1 https://github.com/{repo}.git {folder} 2>/dev/null || git -C {folder} pull -q
+git clone --depth 1 -b {branch} https://github.com/{repo}.git {folder}
 ```
 
-クローンできない環境では、raw URL を WebFetch で読む（振り分けの表 → 必要なスキルの順）。
+`{folder}` がすでにあるとき（前の作業の続きなど）は、先に残っている作業を確かめる。
 
-- {raw}/.claude/skills/ROUTING.md
+```bash
+git -C {folder} status --porcelain                       # 未コミットの変更
+git -C {folder} log --oneline origin/{branch}..HEAD 2>/dev/null  # push していないコミット
+```
+
+どちらかに何か出たら、前の作業が残っている。消さずに、そのことをユーザーに伝えて、続けるか捨てるかを確認する。何も出なければ最新にそろえる。
+
+```bash
+git -C {folder} fetch -q --depth 1 origin {branch} && git -C {folder} checkout -q -B {branch} FETCH_HEAD
+```
+
+クローンも更新もできないとき（エラーはそのまま読む）は、raw URL を WebFetch で読む（振り分けの表 → 必要なスキルの順）。
+
+- {raw}/{ROUTING_PATH}
 - {raw}/.claude/skills/<スキル名>/SKILL.md
 
-どちらも取得できなかったら、作り始める前にその旨を伝えて止まる。**記憶で手順や規約を再現しない。**
+WebFetch で読めるのは手順だけで、`scripts/memo.py` は動かせない。そのときにできるのは、既存のメモの内容を答えることと、保存しない下書きを作ることまで。登録・修正・ファクトチェックの反映など `memo.py` や push が要る作業は、クローンできないので進められないと伝えて止まる。どちらも取得できなかったら、作り始める前にその旨を伝えて止まる。**記憶で手順や規約を再現しない。**
 
 ### 2. どのスキルを使うか決める
 
-リポジトリの `.claude/skills/ROUTING.md` を読み、「アプリ（claude.ai）の入口スキルから使うとき」の表で依頼に合うスキルを選ぶ。表に無い依頼なら `.claude/skills/` の各 SKILL.md の description を見て選ぶ。それでも合うものが無ければ、その旨を伝えて普通に対応する。
+リポジトリの `{ROUTING_PATH}` を読み、「{ROUTING_HEADING}」の表で依頼に合うスキルを選ぶ。表に無い依頼なら `.claude/skills/` の各 SKILL.md の description を見て選ぶ。それでも合うものが無ければ、その旨を伝えて普通に対応する。
 
 ### 3. スキルに従う
 

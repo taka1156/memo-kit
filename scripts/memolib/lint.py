@@ -10,6 +10,26 @@ CURLY = "‘’“”"
 
 STYLE_RE = re.compile(r"(<style\b[^>]*>)(.*?)(</style>)", re.S | re.I)
 SCRIPT_RE = re.compile(r"<script\b[^>]*>(.*?)</script>", re.S | re.I)
+EXTERNAL_SCRIPT_RE = re.compile(r"<script\b[^>]*\bsrc=[\"']?(https?://[^\"'\s>]+)[^>]*>", re.I)
+LONG_ANSWER_RATIO = 1.3  # 正解がほかの選択肢よりこれ以上長いと「長さで正解がわかる」とみなす
+
+
+def quiz_notes(text: str) -> list[str]:
+    """直さなくても動くが、見直したほうがよい点（lint は [注意] として出し、失敗にはしない）。"""
+    qs, probs = read_quiz(text)
+    if probs or not isinstance(qs, list) or len(qs) < 2:
+        return []
+    biased = []
+    for i, q in enumerate(qs, 1):
+        lengths = [len(c) for c in q["choices"]]
+        right = lengths[q["answer"]]
+        others = [n for j, n in enumerate(lengths) if j != q["answer"]]
+        if others and right >= LONG_ANSWER_RATIO * max(others):
+            biased.append(f"Q{i}")
+    if len(biased) >= 2 and len(biased) * 2 >= len(qs):
+        return [f"クイズ: 正解だけが目立って長い問題が {len(biased)} 問（{', '.join(biased)}）。"
+                "長さで正解がわかるので、誤答も同じくらいの長さ・具体さにする"]
+    return []
 
 
 def _fix_css(css: str) -> tuple[str, list[str]]:
@@ -92,6 +112,13 @@ def lint_text(text: str, backlink: bool) -> tuple[str, list[str], list[str]]:
     if new != text:
         fixed.append("自動生成ブロック（memo:head・memo:quiz）を原本から削除（build が dist/ に入れる）")
         text = new
+
+    for m in EXTERNAL_SCRIPT_RE.finditer(text):
+        tag, url = m.group(0), m.group(1)
+        if not re.search(r"\d+\.\d+", url):
+            problems.append(f"外部の script の版が固定されていない（URL に版を入れる）: {url}")
+        if not re.search(r"\bintegrity=", tag, re.I):
+            problems.append(f'外部の script に integrity がない（integrity="sha384-…" と crossorigin="anonymous" を付ける）: {url}')
 
     _qs, quiz_problems = read_quiz(text)
     problems.extend(f"クイズ: {p}" for p in quiz_problems)
