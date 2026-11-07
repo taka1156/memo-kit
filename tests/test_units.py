@@ -255,6 +255,12 @@ class HeadBlockTest(unittest.TestCase):
 
 
 class QuizTest(unittest.TestCase):
+    def setUp(self):
+        # クイズの表示・プレビューを確かめるので、リポジトリの設定（quiz が false のサイトもある）に関わらずオンにする
+        orig = config.CONFIG["quiz"]
+        config.CONFIG["quiz"] = True
+        self.addCleanup(config.CONFIG.__setitem__, "quiz", orig)
+
     def test_validate_accepts_good_data(self):
         self.assertEqual(blocks.validate_quiz(QUIZ_OK), [])
 
@@ -391,6 +397,12 @@ class _TagCounter(HTMLParser):
 
 
 class SiteTest(unittest.TestCase):
+    def setUp(self):
+        # クイズの表示・プレビューを確かめるので、リポジトリの設定（quiz が false のサイトもある）に関わらずオンにする
+        orig = config.CONFIG["quiz"]
+        config.CONFIG["quiz"] = True
+        self.addCleanup(config.CONFIG.__setitem__, "quiz", orig)
+
     def test_json_writers(self):
         memos = [{"file": "a.html", "title": "A", "desc": "", "tags": [], "date": "2026-01-01"},
                  {"file": "b.html", "title": "B", "desc": "", "tags": [], "date": "2026-01-01"}]
@@ -420,7 +432,8 @@ class SiteTest(unittest.TestCase):
     def test_inline_tag_escapes_its_closing_tag(self):
         self.assertEqual(site._inline_tag("script", "a</script>b"), "<script>\na<\\/script>b\n</script>")
 
-    @unittest.skipUnless(helpers.repo_has_memos(), "本物のメモがない（仕組みだけのリポジトリ）")
+    @unittest.skipUnless(helpers.repo_has_memos() and config.load_config()["quiz"],
+                         "本物のメモがない（仕組みだけのリポジトリ）か、クイズを使わないサイト")
     def test_collect_quizzes_from_repository_are_valid(self):
         qs = site.collect_quizzes(site.site_data()[0])
         self.assertTrue(qs)
