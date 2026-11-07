@@ -104,7 +104,7 @@ python3 -B -m unittest discover -s tests   # テスト
 | `scripts/memo.py`（登録・点検・生成）とテスト | Python 3.8 以上（標準ライブラリのみ。テストは 3.11・3.12 で確認、GitHub Actions は 3.12）、git |
 | 公開 | GitHub Pages（dist ブランチを公開）、GitHub Actions（build・デプロイとテスト） |
 | ページの表示 | 閲覧者のブラウザが Google Fonts（`fonts.googleapis.com` の Noto Sans JP・JetBrains Mono）を読み込みます。読めないときはシステムのフォントで表示されます。メモによっては cdnjs のライブラリを使います（[memo-style](.claude/skills/memo-style/SKILL.md)） |
-| `branding/render.py`（アイコン・OGP 画像の生成。設定を変えたときだけ） | `pip install playwright pillow` と `python3 -m playwright install chromium`、フォント Noto Sans CJK JP・DejaVu Sans Mono（Ubuntu なら `apt install fonts-noto-cjk fonts-dejavu-core`）。Actions では、設定ページから色を固定する `Set accent color` だけがこれを入れて動かす。それ以外は手元で実行してコミットする |
+| `branding/render.py`（アイコン・OGP 画像の生成。設定を変えたときだけ） | `pip install -r branding/requirements.txt`（版を固定）と `python3 -m playwright install chromium`、フォント Noto Sans CJK JP・DejaVu Sans Mono（Ubuntu なら `apt install fonts-noto-cjk fonts-dejavu-core`）。Actions では、設定ページから色を固定する `Set accent color` だけがこれを入れて動かす。それ以外は手元で実行してコミットする |
 
 ## Claude に頼むとき
 

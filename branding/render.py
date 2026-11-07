@@ -5,7 +5,7 @@
 文字と色は memo.config.json から読む（site_name・description・公開 URL と、"branding" の項目）。
 設定を変えたらこれを実行し、できた画像をコミットして push する（og.png が変わると build が og:image の ?v= を更新する）。
 
-要: playwright（と chromium: `python3 -m playwright install chromium`）、Pillow、
+要: playwright（と chromium: `python3 -m playwright install chromium`）、Pillow（版は branding/requirements.txt）、
     フォント Noto Sans CJK JP / DejaVu Sans Mono（Ubuntu なら fonts-noto-cjk・fonts-dejavu-core）
 memo.py 本体とは違い、こちらは標準ライブラリだけでは動かない（画像を作るときだけ使う）。
 """
@@ -22,7 +22,7 @@ try:
     from playwright.sync_api import sync_playwright
 except ImportError as e:
     sys.exit(f"render.py に必要なパッケージがありません（{e.name}）。\n"
-             "  pip install playwright pillow\n  python3 -m playwright install chromium")
+             "  pip install -r branding/requirements.txt\n  python3 -m playwright install chromium")
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "scripts"))

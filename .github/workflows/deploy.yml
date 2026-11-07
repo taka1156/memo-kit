@@ -28,13 +28,13 @@ jobs:
     if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # push なら push されたコミット、それ以外（手動・Set accent color から）はデフォルトブランチの最新
           ref: ${{ github.event_name == 'push' && github.sha || github.event.repository.default_branch }}
           fetch-depth: 0 # memo:date がないメモの日付を git 履歴から推定するため
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
