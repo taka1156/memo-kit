@@ -113,6 +113,7 @@ class ConfigTest(unittest.TestCase):
             '{"sitename": "x"}': "使える項目",
             '{"roadmap": "yes"}': "roadmap は true か false",
             '{"roadmap": 1}': "roadmap は true か false",
+            '{"quiz": "no"}': "quiz は true か false",
         }
         with tempfile.TemporaryDirectory() as d:
             f = Path(d) / "memo.config.json"
@@ -132,6 +133,8 @@ class ConfigTest(unittest.TestCase):
     def test_optional_pages_follow_config(self):
         self.assertFalse(config.page_enabled("roadmap.html", {**config.DEFAULTS}))
         self.assertTrue(config.page_enabled("roadmap.html", {**config.DEFAULTS, "roadmap": True}))
+        self.assertTrue(config.page_enabled("quiz.html", {**config.DEFAULTS}))
+        self.assertFalse(config.page_enabled("quiz.html", {**config.DEFAULTS, "quiz": False}))
         self.assertTrue(config.page_enabled("settings.html", {**config.DEFAULTS}))  # オプションでないページは常に出す
         self.assertTrue(set(config.OPTIONAL_PAGES) <= config.SPECIAL_NAMES)
         self.assertTrue(set(config.OPTIONAL_PAGES.values()) <= set(config.DEFAULTS))

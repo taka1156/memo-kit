@@ -86,6 +86,7 @@ def apply_head(text: str, filename: str) -> str:
 #   explain / ref は任意。ref があると、間違えたときに本文の該当箇所へ飛ぶリンクが出る。
 #   </script>
 # 表示用の UI（<!-- memo:quiz --> ブロック）は build が dist/ のページ末尾に自動で入れる（原本には入れない）。
+# memo.config.json の quiz が false なら、ブロックも quizzes.json・quiz.html も作らない。
 # build は全メモの問題を dist/quizzes.json に集める（トップのランダムクイズと quiz.html 用）。
 
 QUIZ_BEGIN = "<!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->"
@@ -239,4 +240,5 @@ def strip_generated(text: str) -> str:
 def apply_generated(text: str, filename: str) -> str:
     """自動生成ブロック（head・クイズ）とサイト設定の差し込みをすべて最新にする（build が dist/ に書き出すページ用）。"""
     text = apply_head(apply_site(text), filename)
-    return text if filename in SPECIAL_NAMES else apply_quiz(text)
+    # クイズがオフ（memo.config.json の quiz が false）なら表示のブロックを入れない。原本の問題データはそのまま残す
+    return text if filename in SPECIAL_NAMES or not CONFIG["quiz"] else apply_quiz(text)
