@@ -209,11 +209,13 @@ def cmd_sync(args) -> int:
     """memo-kit（KIT はその clone のフォルダ）の仕組みのファイルを取り込む。--check は違いを表示するだけ。"""
     kit = Path(args.kit).resolve()
     probs = sync.kit_problems(kit, force=args.force)
-    if not args.check:
-        probs += sync.own_problems()
     if probs:
         sys.exit("止めました:\n- " + "\n- ".join(probs))
     p = sync.plan(kit)
+    if not args.check:
+        probs = sync.own_problems(p.added + p.changed + p.removed)
+        if probs:
+            sys.exit("止めました:\n- " + "\n- ".join(probs))
     base = f"前回取り込み {p.base[:7]}" if p.base else f"前回取り込みの記録なし（{sync.BASE_FILE}）"
     print(f"memo-kit: {p.kit_branch or '(ブランチなし)'} {p.kit_head[:7]}（{base}）")
     for label, files in (("追加", p.added), ("更新", p.changed), ("削除", p.removed)):
@@ -236,6 +238,9 @@ def cmd_sync(args) -> int:
     print(f"取り込んだ: {p.count} 件。{sync.BASE_FILE} を {p.kit_head[:7]} にした")
     if p.review:
         print("「見比べる」のファイルは次の sync からは出ないので、いま反映しておく")
+    if sync.SELF in p.added + p.changed:
+        print(f"{sync.SELF}（取り込む・取り込まないの決まり）も新しくなったので、コミットしてからもう一度 sync を実行し、"
+              "取り込み漏れがないか確かめる")
     if p.count:
         print("テストを流してからコミットする（python3 -B -m unittest discover -s tests）")
     return 0

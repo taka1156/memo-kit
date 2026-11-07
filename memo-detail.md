@@ -525,7 +525,7 @@ flowchart LR
 | `memolib/markdown.py` | AI 向けの Markdown 版 | `html_to_markdown`・`memo_markdown`・`llms_txt`・`markdown_outputs` |
 | `memolib/site.py` | 一覧・問題の JSON、会話内プレビュー用の 1 枚の HTML | `site_data`・`memos_json`・`quizzes_json`・`preview_text` |
 | `memolib/dist.py` | `dist/` に置く全ファイルの組み立て（`src/` のコピー＋生成物）と書き出し | `dist_outputs`・`sync_dist` |
-| `memolib/sync.py` | memo-kit から仕組みのファイルを取り込む（上書きする・見比べる・触らないの一覧と、前回取り込んだコミットの記録） | `kit_problems`・`own_problems`・`plan`・`apply` |
+| `memolib/sync.py` | memo-kit から仕組みのファイルを取り込む（取り込まない・見比べるだけのファイルの一覧と、前回取り込んだコミットの記録） | `kit_problems`・`own_problems`・`plan`・`apply` |
 
 多くの関数は「HTML の文字列を受け取って文字列を返す」だけで、ファイルを書き換えるのは `memo.py` の各コマンドと `dist.sync_dist`（`dist/` だけ）、`sync.apply`（`memo.py sync` で、仕組みのファイルと `.memo-kit-sync`）です。そのため関数単位でテストできます。
 
@@ -620,13 +620,13 @@ python3 -B -m unittest discover -s tests   # 本物のメモを見るテスト�
 
 ### memo-kit の更新を取り込む
 
-テンプレートから作ったリポジトリは memo-kit と git の履歴を共有しないので、memo-kit の更新は merge では取り込めません。`python3 scripts/memo.py sync KIT`（`KIT` は memo-kit を clone したフォルダ）で取り込みます。ファイルは 3 つに分けて扱います（一覧は `scripts/memolib/sync.py`）。
+テンプレートから作ったリポジトリは memo-kit と git の履歴を共有しないので、memo-kit の更新は merge では取り込めません。`python3 scripts/memo.py sync KIT`（`KIT` は memo-kit を clone したフォルダ）で取り込みます。取り込まないファイルを書いておき、それ以外はすべて取り込む方式です（一覧は `scripts/memolib/sync.py` の `SITE_PATTERNS`・`REVIEW_PATTERNS`）。memo-kit に仕組みのファイルを足せば、一覧を直さなくてもそのまま取り込まれます。
 
 | 分け方 | 場所 | sync がすること |
 | --- | --- | --- |
-| 仕組み（どのサイトでも同じ） | `scripts/`・`tests/`・`.github/workflows/` の下、`memo-detail.md`・`CLAUDE.md`・`.gitignore`・`src/.nojekyll`・`src/assets/memo-quiz.*`・`branding/` の生成元 | memo-kit の中身で上書きする。前回取り込んだときは memo-kit にあって今は無いファイルは消す。3 つのフォルダの下にある、このサイトだけのファイルは消さずに「残す」と表示する |
+| 仕組み（どのサイトでも同じ） | 下の 2 つ以外の、memo-kit のすべてのファイル（`scripts/`・`tests/`・`.github/workflows/`・`memo-detail.md`・`CLAUDE.md`・`branding/` の生成元・`src/assets/memo-quiz.*` など） | memo-kit の中身で上書きする。前回取り込んだときは memo-kit にあって今は無いファイルは消す。このサイトだけのファイルは消さない（memo-kit にもあるフォルダの中のものは「残す」と表示する） |
 | サイトごとに書き換える仕組み | `.claude/skills/`、`src/index.html`・`quiz.html`・`settings.html`・`roadmap.html` | 書き換えない。前回取り込んだ memo-kit のコミット以降に memo-kit で変わったファイルを「見比べる」として、差分を見るコマンドと一緒に出す。差分を見て、必要な変更だけ手で入れる（前回の記録が無いときは、memo-kit と違うものを全部出す） |
-| サイトのもの | `memo.config.json`・`README.md`・メモ・画像・`CNAME`・`LICENSE` など | 触らない |
+| サイトのもの | `memo.config.json`・`README.md`・`LICENSE`・`.memo-kit-sync`・メモ（`src/` 直下の `*.html`）・`src/CNAME`・アイコンと OGP 画像（`src/assets/*.png`・`*.ico`）・`branding/source.png` | 触らない |
 
 ```bash
 git clone -q --filter=blob:none https://github.com/taka1156/memo-kit.git /tmp/memo-kit
@@ -637,7 +637,9 @@ python3 -B -m unittest discover -s tests              # 通ってからコミッ
 
 - 前回取り込んだ memo-kit のコミットは `.memo-kit-sync` に残ります。消すファイルと「見比べる」は、これを基準に決まります。取り込むと今の memo-kit のコミットに変わるので、「見比べる」のファイルは取り込んだその場で反映しておきます（次からは出ません）。
 - 次のときは止まります: memo-kit が git のリポジトリでない・memo-kit 側に未コミットの変更がある・このリポジトリの上書きするファイルに未コミットの変更がある（`--check` 以外）。memo-kit の `memo.config.json` の `repository` がテンプレートの値でない（ほかのサイトを渡した）・前回取り込んだコミットより古いか別のブランチの memo-kit を渡した・前回取り込んだコミットが渡した memo-kit の履歴に無い（`--depth 1` の浅い clone など。`--filter=blob:none` で clone し直す）、のときも止まります。わざとなら `--force` を付けます。
-- 3 つのフォルダ（`scripts/`・`tests/`・`.github/workflows/`）には、なるべくサイト固有のファイルを置きません。置いても消えませんが、毎回「残す」と表示されます。
+- memo-kit にサイトのもの（サンプルのメモや画像のような、各サイトが自分で持つファイル）を新しく足すときは、`SITE_PATTERNS` にも足します。足し忘れると、各サイトに取り込まれてしまいます。
+- `sync.py` 自身が新しくなったときは、1 回目の取り込みは古い決まりで判定されます。そのときは知らせが出るので、コミットしてからもう一度 `sync` を実行します。
+- 仕組みのフォルダ（`scripts/`・`tests/`・`.github/workflows/` など）には、なるべくサイト固有のファイルを置きません。置いても消えませんが、毎回「残す」と表示されます。
 - テンプレートから作った直後や、この仕組みを入れた直後は `.memo-kit-sync` がありません。最初に一度 `sync` して、できた `.memo-kit-sync` をコミットしておきます（無いままだと、サイトごとに書き換えたスキルやページが毎回「見比べる」に出ます）。
 - `.github/workflows/kit-sync.yml`（`Check memo-kit`）が週に 1 回 `sync --check` を動かし、違いがあれば失敗にして（通知が届く）、注釈とまとめに内容を出します。何も書き換えません。`sync` 自体のエラーは、違いとは別のエラーとして出します。memo-kit 自身では動きません。memo-kit の場所を変えるときは、リポジトリ変数 `MEMO_KIT_REPOSITORY` に `owner/name` を入れます。
 - スキルの文面は、共通の手順とサイトに合わせた書き換えが混ざっているので、丸ごとは上書きできません。サイトに合わせた書き換えは最小限にしておくと、見比べるのが楽になります。
