@@ -32,10 +32,10 @@ git clone --depth 1 -b master https://github.com/repo/sample.git sample
 
 ```bash
 git -C sample status --porcelain                       # 未コミットの変更
-git -C sample log --oneline origin/master..HEAD 2>/dev/null  # push していないコミット
+git -C sample log --oneline origin/master..HEAD     # push していないコミット
 ```
 
-どちらかに何か出たら、前の作業が残っている。消さずに、そのことをユーザーに伝えて、続けるか捨てるかを確認する。何も出なければ最新にそろえる。
+どちらかに何か出たら（エラーが出たときも。`origin/master` が無い・別のブランチで clone したフォルダなど）、前の作業が残っているかもしれない。消さずに、そのことをユーザーに伝えて、続けるか捨てるかを確認する。どちらも何も出なければ最新にそろえる。
 
 ```bash
 git -C sample fetch -q --depth 1 origin master && git -C sample checkout -q -B master FETCH_HEAD

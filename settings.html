@@ -277,7 +277,10 @@ footer a { color: var(--accent); }
 
   <footer><a href="index.html" data-memo-site="{site_name} 一覧">MemoKit 一覧</a></footer>
 </div>
+<script src="assets/memo-site.js"></script>
 <script>
+// 共通の処理は assets/memo-site.js（MemoSite）。lightAccent は memolib/config.py の light_accent と同じ計算
+const { hex6, contrast, lightAccent } = MemoSite;
 // 色の候補。ライト用はどれも白地とのコントラスト比 4.5 以上
 const PRESETS = [
   ['シアン', '#00d4ff', '#0077b6'],
@@ -292,23 +295,6 @@ const PRESETS = [
 const DARK_BG = '#0a0e14', LIGHT_BG = '#f6f7f9';
 const $ = id => document.getElementById(id);
 
-const hex6 = c => {
-  c = c.trim().toLowerCase();
-  return /^#[0-9a-f]{3}$/.test(c) ? '#' + [...c.slice(1)].map(x => x + x).join('') : c;
-};
-const rgb = c => [1, 3, 5].map(i => parseInt(hex6(c).slice(i, i + 2), 16));
-const lum = c => {
-  const [r, g, b] = rgb(c).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-const darken = (c, ratio) => '#' + rgb(c).map(v => Math.round(v * ratio).toString(16).padStart(2, '0')).join('');
-// memolib/config.py の light_accent と同じ計算（白地でコントラスト比 4.5 以上になるまで暗くする）
-const lightAccent = c => {
-  let ratio = 1;
-  while (contrast(darken(c, ratio), '#ffffff') < 4.5 && ratio > 0) ratio = Math.round((ratio - 0.02) * 100) / 100;
-  return darken(c, Math.max(ratio, 0));
-};
 
 const current = { dark: hex6($('cur-dark').textContent), light: hex6($('cur-light').textContent) };
 $('cur-dark-dot').style.background = current.dark;
