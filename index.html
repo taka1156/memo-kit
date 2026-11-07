@@ -196,7 +196,7 @@ footer a { color: var(--accent); }
     <div class="tags" id="tags"></div>
   </div>
 
-  <details class="rq" id="rq" hidden>
+  <details class="rq" id="rq" hidden data-memo-if="quiz">
     <summary>🎲 ランダムクイズ</summary>
     <div class="rq-body">
       <p class="rq-from" id="rq-from"></p>
@@ -308,8 +308,10 @@ document.getElementById('refresh').addEventListener('click', e => {
 });
 
 // ---- ランダムクイズ（全メモの確認クイズから 1 問。開いたときに quizzes.json を読み込む）
+// memo.config.json の quiz が false なら build が #rq ごと取り除くので、何もしない
 const randomQuiz = (() => {
   const box = document.getElementById('rq');
+  if (!box) return { update() {} };
   const $ = id => document.getElementById(id);
   let pool = null;
   let fresh = false;
