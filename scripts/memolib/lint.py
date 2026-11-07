@@ -11,6 +11,9 @@ CURLY = "‘’“”"
 STYLE_RE = re.compile(r"(<style\b[^>]*>)(.*?)(</style>)", re.S | re.I)
 SCRIPT_RE = re.compile(r"<script\b[^>]*>(.*?)</script>", re.S | re.I)
 EXTERNAL_SCRIPT_RE = re.compile(r"<script\b[^>]*\bsrc=[\"']?(https?://[^\"'\s>]+)[^>]*>", re.I)
+# テンプレート（.claude/skills/memo-style/template.html）の仮の文。残っていたら書き換え忘れ
+TEMPLATE_PLACEHOLDERS = ("ここに図解や説明。", "ここに詳細。", "1 行のサブタイトル", "何がわかるページかを 1 文で",
+                         "<li>要点 1</li>", "〇〇したい場面で、まず選ぶべきものは？")
 LONG_ANSWER_RATIO = 1.3  # 正解がほかの選択肢よりこれ以上長いと「長さで正解がわかる」とみなす
 
 
@@ -113,6 +116,9 @@ def lint_text(text: str, backlink: bool) -> tuple[str, list[str], list[str]]:
         fixed.append("自動生成ブロック（memo:head・memo:quiz）を原本から削除（build が dist/ に入れる）")
         text = new
 
+    left = [p for p in TEMPLATE_PLACEHOLDERS if p in text]
+    if left:
+        problems.append("テンプレートの仮の文が残っている（書き換える）: " + "・".join(left))
     for m in EXTERNAL_SCRIPT_RE.finditer(text):
         tag, url = m.group(0), m.group(1)
         if not re.search(r"\d+\.\d+", url):

@@ -333,6 +333,11 @@ class QuizTest(unittest.TestCase):
 
 
 class LintTest(unittest.TestCase):
+    def test_template_left_as_is_is_reported(self):
+        template = (helpers.REPO / ".claude" / "skills" / "memo-style" / "template.html").read_text(encoding="utf-8")
+        probs = lint.lint_text(template, backlink=False)[2]
+        self.assertTrue(any("テンプレートの仮の文" in p for p in probs), probs)
+
     def test_external_scripts_need_pinned_version_and_integrity(self):
         bad = page("<title>T</title>", '<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/latest/mermaid.min.js"></script>')
         probs = lint.lint_text(bad, backlink=False)[2]
