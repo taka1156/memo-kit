@@ -66,10 +66,12 @@ HTML を読むのは次のときだけ:
 python3 scripts/memo.py lint NAME      # OK になること
 python3 scripts/memo.py build          # dist/ を作り直す（Markdown 版を読み直すため。コミットはしない）
 BRANCH="$(python3 scripts/memo.py config branch)"   # push 先（memo.config.json）
+[ "$(git branch --show-current)" = "$BRANCH" ] || { echo "今いるブランチが $BRANCH ではないので止める（commit も push もせずにユーザーに確認する）"; exit 1; }
 git fetch origin "$BRANCH"              # 遅れていれば rebase
-git add -A "$(dirname "$(python3 scripts/memo.py path NAME)")"
+git add "$(python3 scripts/memo.py path NAME)"   # このメモの原本だけ（複数なら 1 本ずつ）。dist/ はコミットしない
+git status --short                  # 対象以外の変更（下書きなど）がステージされていないか確かめる
 git commit -m "Update memo: <タイトル>"
-git push origin HEAD:"$BRANCH"
+git push origin "$BRANCH"
 ```
 
 - `memo:date` は更新しない（作成日のまま）。タイトルや説明が変わる修正なら `memo.py meta` で直す。

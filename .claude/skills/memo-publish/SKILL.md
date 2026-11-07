@@ -101,7 +101,7 @@ python3 scripts/memo.py list
 
 commit / push の前に、memo-factcheck スキルを最後まで読み、その手順でファクトチェックする（新規なら全体、既存メモの差し替えなら変わった箇所）。
 
-- 指摘が 0 件なら次へ進む。
+- 指摘が 0 件なら次へ進む（書き手が自分でチェックしたときは、0 件でもユーザーに確認してから。memo-factcheck の「サブエージェントが使えない環境」）。
 - 指摘があれば報告し、どれを直すかユーザーに確認してから直す。直したら手順 6（lint → build）をやり直して次へ進む。
 - ユーザーがその場にいないときは、指摘があれば push せずに止めて報告する。
 
@@ -109,10 +109,12 @@ commit / push の前に、memo-factcheck スキルを最後まで読み、その
 
 ```bash
 BRANCH="$(python3 scripts/memo.py config branch)"   # push 先（memo.config.json）
+[ "$(git branch --show-current)" = "$BRANCH" ] || { echo "今いるブランチが $BRANCH ではないので止める（commit も push もせずにユーザーに確認する）"; exit 1; }
 git fetch origin "$BRANCH"          # 遅れていれば rebase
-git add -A "$(dirname "$(python3 scripts/memo.py path NAME)")"   # src/（原本）だけ。dist/ はコミットしない
+git add "$(python3 scripts/memo.py path NAME)"   # このメモの原本だけ（複数なら 1 本ずつ）。dist/ はコミットしない
+git status --short                  # 対象以外の変更（下書きなど）がステージされていないか確かめる
 git commit -m "Add memo: <タイトル>"
-git push origin HEAD:"$BRANCH"
+git push origin "$BRANCH"
 ```
 
 push すると GitHub Actions（Deploy MEMO）が build して公開する（数分）。原本のブランチに Actions がコミットすることはない。

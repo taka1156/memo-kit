@@ -104,10 +104,12 @@ memo-publish でメモを登録したあと、ロードマップがオンで、�
 
    ```bash
    BRANCH="$(python3 scripts/memo.py config branch)"
+   [ "$(git branch --show-current)" = "$BRANCH" ] || { echo "今いるブランチが $BRANCH ではないので止める（commit も push もせずにユーザーに確認する）"; exit 1; }
    git fetch origin "$BRANCH"          # 遅れていれば rebase
    git add src/roadmap.html memo.config.json
+   git status --short                  # 対象以外の変更がステージされていないか確かめる
    git commit -m "Update roadmap: <何を変えたか>"
-   git push origin HEAD:"$BRANCH"
+   git push origin "$BRANCH"
    ```
 
    B でメモを書いたときは、メモの登録（memo-publish）とは別のコミットにしてよいし、同じコミットに含めてもよい。

@@ -10,6 +10,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 
 ## 守ること
 
+- **依存してよいのは memo-kit だけ。** ほかのサイト（同じ memo-kit から作った姉妹サイトなど）の URL・`llms.txt`・リポジトリを、スキル・スクリプト・ワークフロー・ページから参照しない。サイトが増えるたびに全サイトを直すことになる。
 - **標準ライブラリだけ。** pip で何かを入れないと動かない形にしない（BeautifulSoup・pytest なども使わない。テストは `unittest`）。
 - **入口は `python3 scripts/memo.py` のまま。** スキル・README・Actions がこの呼び方に依存している。処理の本体は `scripts/memolib/` に置き、`memo.py` はコマンドの受け付けだけにする。
 - **置き場所を知っているのは `memolib/config.py` だけ。** 他のモジュールやスキルでパスを組み立てない。
@@ -33,6 +34,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 | `memolib/lint.py` | 崩れのチェックと自動修正 |
 | `memolib/markdown.py` | AI 向けの Markdown 版 |
 | `memolib/site.py` | memos.json・quizzes.json、会話内プレビュー用の 1 枚の HTML |
+| `memolib/sync.py` | memo-kit から仕組みのファイルを取り込む（`memo.py sync`）。どれを上書きし、どれを見比べるだけにするかの一覧 |
 | `memolib/dist.py` | `dist/` に置く全ファイルを組み立てて書き出す（`src/` のコピー＋生成物。消えたファイルは `dist/` からも消す） |
 | `tests/test_cli.py` | コマンドを外から動かす結合テスト（作りを変えても通るもの）。`RepositoryTest` だけ本物のメモを見る |
 | `tests/test_units.py` | 関数ごとの単体テスト |
@@ -105,6 +107,12 @@ GitHub Actions は Python 3.12 で動く。手元に `python3.12` があれば�
 
 - コミットするのはスクリプトと原本だけ。生成物（`dist/`）はコミットしない。
 - push すると `Test memo.py`（テスト）と `Deploy MEMO`（build して dist ブランチにデプロイ）の 2 つのワークフローが動く。
+
+### 6. memo-kit とテンプレートから作ったリポジトリをそろえる
+
+- 仕組みは memo-kit で直すのが基本。テンプレートから作ったリポジトリで直したときは、同じ変更を memo-kit にも入れる（入れないと、次の `sync` で消える）。
+- memo-kit の変更は、各リポジトリで `python3 scripts/memo.py sync <memo-kit を clone したフォルダ>` で取り込み、テストを流してからコミットする。「見比べる」と出たスキルやページは、memo-kit の差分を見てサイトに合う形で手で入れる（memo-detail.md の「memo-kit の更新を取り込む」）。
+- 新しく仕組みのファイルを足したら、`memolib/sync.py` の一覧（上書きする／見比べる）に入れるかを決める。
 
 ## 過去につまずいたこと
 

@@ -28,6 +28,7 @@
 - [コードの構成とテスト](#コードの構成とテスト)
 - [変更したいときはどこを触るか](#変更したいときはどこを触るか)
 - [このキットから始める](#このキットから始める)
+  - [memo-kit の更新を取り込む](#memo-kit-の更新を取り込む)
 
 ## 基本の考え方
 
@@ -37,6 +38,7 @@
 - **サイトごとの値は `memo.config.json` だけに書く。** サイト名・リポジトリ・ブランチ・タイムゾーンをコードやスキル、ページに直接書きません（[サイトごとの設定](#サイトごとの設定memoconfigjson)）。
 - **置き場所を知っているのはスクリプトだけ。** メモは名前（`docker` など）で指定し、パスは `memo.py path NAME` で引きます。スキル側でパスを組み立てません。
 - **公開されるのは `dist/` の中身だけ。** GitHub Pages の公開元は dist ブランチ（`dist/` の中身そのもの）なので、スクリプト・スキル・このファイルは公開されません。
+- **依存してよいのは memo-kit だけ。** テンプレートから作ったサイトは、memo-kit（テンプレート元）以外のものに依存しません。同じ memo-kit から作ったほかのサイトの URL・`llms.txt`・リポジトリを、スキル・スクリプト・ワークフロー・ページから参照しません（サイトが増えるたびに全サイトを直すことになるため）。書く範囲の重なりや食い違いは、そのサイトの中だけで確かめます。
 
 ## 全体像：原本と生成物
 
@@ -84,7 +86,7 @@ flowchart LR
 | `dist/quizzes.json` | 生成物 | `build` | 全メモの問題（どのメモの問題かも含む）。1 問 1 行 |
 | `dist/md/NAME.md` | 生成物 | `build` | 各メモの本文を Markdown にしたもの |
 | `dist/llms.txt` | 生成物 | `build` | 全メモの目次（Markdown 版へのリンク） |
-| `dist/assets/`・`CNAME`・`.nojekyll` | 生成物（コピー） | `build` | `src/` のページ以外のファイルをそのままコピーしたもの |
+| `dist/assets/`・`CNAME`・`.nojekyll` | 生成物（コピー） | `build` | `src/` のページ以外のファイルをそのままコピーしたもの。コピーするのは `src/` 直下の `CNAME`・`.nojekyll` と `assets/` の下（ドットファイルと `.bak` などのバックアップは除く）だけで、それ以外（下書きのフォルダ・`.env`・シンボリックリンクなど）は公開せずに警告する |
 | `src/assets/memo-quiz.css`・`.js` | 共通ファイル | 人 | 確認クイズの見た目と動き |
 | `src/assets/*.png`・`favicon.ico` | 共通ファイル | `branding/render.py` | アイコンと OGP 画像 |
 | `.claude/skills/memo-style/template.html` | テンプレート | 人 | `new` で新しいメモを作るときの雛形 |
@@ -147,8 +149,9 @@ python3 scripts/memo.py <コマンド> ...
 | `url` | `url [NAME]` | 公開 URL を表示 | しない |
 | `lint` | `lint MEMO... [--fix] [--backlink]` | 崩れのチェック。`--fix` で直せるものを直す | `--fix` のときだけ |
 | `meta` | `meta MEMO [--title] [--desc] [--tags] [--date]` | メタ情報を設定する | する（指定した項目だけ） |
-| `build` | `build [--check]` | `src/` から公開用のサイト一式を `dist/` に書き出す。`--check` は `dist/` が古いかどうかだけ調べる | `dist/` だけ（`--check` 以外）。`src/` は書き換えない |
+| `build` | `build [--check] [--strict]` | `src/` から公開用のサイト一式を `dist/` に書き出す。`--check` は `dist/` が古いかどうかだけ調べる。`--strict` はクイズの崩れや公開しないファイルの警告があれば書き出さずに止める（デプロイが使う） | `dist/` だけ（`--check` 以外）。`src/` は書き換えない |
 | `list` | `list` | メモの一覧（日付・名前・タイトル・タグ）を表示 | しない |
+| `sync` | `sync KIT [--check] [--force]` | memo-kit を clone したフォルダ `KIT` から仕組みのファイルを取り込む。`--check` は違いを表示するだけ（上書きするファイルに違いがあれば終了コード 1）。`--force` は「memo-kit らしくない」「前回より古い」でも続ける。詳しくは [memo-kit の更新を取り込む](#memo-kit-の更新を取り込む) | 仕組みのファイルと `.memo-kit-sync`（`--check` 以外） |
 | `config` | `config [KEY]` | `memo.config.json` の設定（と公開 URL `site_url`）を表示 | しない |
 | `accent` | `accent COLOR [LIGHT]` | アクセント色を `memo.config.json` に書く（`LIGHT` を省くと `COLOR` から自動）。ページへの反映は `build`（公開はデプロイ） | `memo.config.json` だけ |
 | `preview` | `preview MEMO\|index\|quiz\|settings\|roadmap\|FILE [-o OUT]` | 共通ファイルを埋め込んだ 1 枚の HTML を書き出す | 元のファイルはしない |
@@ -181,7 +184,7 @@ sequenceDiagram
   P-->>U: dist/ に公開用のサイト一式を書き出す（src/ は書き換えない。確認用）
   U->>G: src/ の原本だけを commit / push
   G->>A: src/ などの変更で起動（Deploy MEMO）
-  A->>A: lint（報告のみ）→ build で dist/ を作る
+  A->>A: テスト → lint（報告のみ）→ build --strict で dist/ を作る
   A->>G: dist/ の中身を dist ブランチにコミット（main には何もコミットしない）
   G->>S: dist ブランチを公開
 ```
@@ -227,7 +230,7 @@ GitHub の画面から HTML を直接アップロードした場合も、Actions
 
 ```mermaid
 flowchart TB
-  s1["① src/ のページ以外のファイルをコピーする<br/>assets/・CNAME・.nojekyll など"]
+  s1["① src/ のページ以外のファイルをコピーする<br/>assets/・CNAME・.nojekyll だけ（許可リスト）"]
   s2["② 各ページに自動生成ブロックを入れる<br/>メモ: memo:head・memo:quiz / index・quiz・settings・roadmap: memo:head とサイト名など"]
   s3["③ 全メモの &lt;head&gt; と問題データから<br/>memos.json・quizzes.json を作る（日付の新しい順。崩れた問題は飛ばして警告）"]
   s4["④ md/*.md と llms.txt を作る"]
@@ -238,6 +241,7 @@ flowchart TB
 
 - `memo.config.json` の `repository` が空・`owner/name` の形でない・テンプレートの値（`repo/sample`）のままのときは、最初に警告を出します（止めずに続けます）。入口スキルの clone 先や公開 URL がおかしくなるのを防ぐためです。
 - `--check` は何も書き込まず、`dist/` に古い（足りない・余分な）ファイルがあれば名前を表示して終了コード 1 を返します。
+- `--strict` は、クイズの崩れ（JSON の壊れや形の誤りで、問題が公開から落ちるもの）や公開しないファイル（`src/` の許可リスト外）の警告が 1 件でもあれば、`dist/` を書き出さずに終了コード 1 を返します。`--strict` なしなら、警告を出して続けます（崩れた問題は飛ばし、許可リスト外のファイルは公開しない）。`repository` がテンプレートのままという警告では止まりません。
 - `dist/` を消して `build` し直しても同じ中身になります。`dist/` は `.gitignore` 済みで、コミットするのは `src/` の原本だけです。
 - `memos.json` の各メモには、そのメモの問題数（`quizzes`）も入ります。トップページはこれを足してランダムクイズの問題数を表示し、問題本体（`quizzes.json`）はランダムクイズを開いたときに初めて読み込みます。
 
@@ -455,7 +459,7 @@ python3 scripts/memo.py preview 下書き.html -o /tmp/NAME.html
 
 ```mermaid
 flowchart LR
-  push["main に push<br/>（原本だけ）"] --> b["Deploy MEMO<br/>lint（報告のみ）→ build"]
+  push["main に push<br/>（原本だけ）"] --> b["Deploy MEMO<br/>テスト → lint（報告のみ）→ build --strict"]
   b --> d["dist/"]
   d -->|"中身を丸ごと置き換えてコミット"| br["dist ブランチ"]
   br --> pages["GitHub Pages"]
@@ -464,10 +468,12 @@ flowchart LR
 | 項目 | 内容 |
 | --- | --- |
 | 起動する変更 | `src/` 以下・`scripts/` 以下・`memo.config.json`・このワークフロー（手動実行も可。`Set accent color` からも呼ばれる） |
-| 手順 | 履歴ごと checkout（日付の推定に使う）→ 全メモを `lint`（報告のみ。メモが 0 本なら省略）→ `build` |
+| 手順 | 履歴ごと checkout（日付の推定に使う）→ テスト（仕組みだけ。`MEMO_SKIP_REPO_TESTS` で本物のメモの検査は飛ばす。落ちたら公開しない）→ 全メモを `lint`（報告のみ。指摘があれば注釈を出す。メモが 0 本なら省略）→ `build --strict`（クイズの崩れや公開しないファイルがあれば止める） |
 | コミット | dist ブランチを `dist/` の中身で丸ごと置き換え、変わっていれば `Deploy <元のコミット>` としてコミット・push。dist ブランチの履歴は残るので、生成物の変化も追える。ブランチがまだなければ履歴のない（orphan）ブランチとして作る |
 | 原本のブランチ | 何もコミットしない（以前の `Rebuild MEMO index` のような Actions のコミットは入らない） |
 | 同時実行 | 同じブランチの実行は 1 本ずつ順番に動く（`concurrency`。途中で止めない）。dist ブランチに書くのはこのワークフローだけなので、push の競合は起きない |
+
+`.github/workflows/kit-sync.yml`（`Check memo-kit`）は、テンプレートから作ったリポジトリで週に 1 回、仕組みのファイルが memo-kit と違っていないかを確かめて知らせます（[memo-kit の更新を取り込む](#memo-kit-の更新を取り込む)）。
 
 もう 1 つの `.github/workflows/test.yml`（`Test memo.py`）は、`scripts/`・`tests/`・クイズの共通ファイル・トップ・クイズ・設定・ロードマップのページ・`memo.config.json`・テンプレートが変わったとき（どのブランチでも、PR も含む）にテストを流します。リポジトリは書き換えません。
 
@@ -489,8 +495,10 @@ flowchart LR
     md["markdown.py<br/>Markdown 版"]
     site["site.py<br/>memos.json・quizzes.json<br/>preview"]
     dist["dist.py<br/>dist/ の組み立てと書き出し"]
+    sync["sync.py<br/>memo-kit からの取り込み"]
   end
-  cli --> dist & lint & site & meta & md & config
+  cli --> dist & lint & site & meta & md & config & sync
+  sync --> config
   dist --> md & site & blocks & entry & meta
   entry --> config
   lint --> blocks
@@ -516,8 +524,9 @@ flowchart LR
 | `memolib/markdown.py` | AI 向けの Markdown 版 | `html_to_markdown`・`memo_markdown`・`llms_txt`・`markdown_outputs` |
 | `memolib/site.py` | 一覧・問題の JSON、会話内プレビュー用の 1 枚の HTML | `site_data`・`memos_json`・`quizzes_json`・`preview_text` |
 | `memolib/dist.py` | `dist/` に置く全ファイルの組み立て（`src/` のコピー＋生成物）と書き出し | `dist_outputs`・`sync_dist` |
+| `memolib/sync.py` | memo-kit から仕組みのファイルを取り込む（上書きする・見比べる・触らないの一覧と、前回取り込んだコミットの記録） | `kit_problems`・`own_problems`・`plan`・`apply` |
 
-多くの関数は「HTML の文字列を受け取って文字列を返す」だけで、ファイルを書き換えるのは `memo.py` の各コマンドと `dist.sync_dist`（`dist/` だけ）です。そのため関数単位でテストできます。
+多くの関数は「HTML の文字列を受け取って文字列を返す」だけで、ファイルを書き換えるのは `memo.py` の各コマンドと `dist.sync_dist`（`dist/` だけ）、`sync.apply`（`memo.py sync` で、仕組みのファイルと `.memo-kit-sync`）です。そのため関数単位でテストできます。
 
 ### テスト
 
@@ -532,7 +541,7 @@ python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保�
 
 | ファイル | 中身 |
 | --- | --- |
-| `tests/test_cli.py` | コマンドを外から動かす結合テスト。`build` が `src/` を書き換えないか、`dist/` を消して `build` すると同じ中身に戻るか、2 回目の `build` で何も変わらないか、`dist/` だけで公開できるか、`memo.config.json` を変えるとページ・入口スキル・URL が変わるか、`lint --fix`・`new`・`add`・`meta`・`preview`・`config` の動きなど。`RepositoryTest` だけは本物のメモで、原本がきれいか・`build` が `src/` を書き換えないか・全メモが lint を通るかを見る |
+| `tests/test_cli.py` | コマンドを外から動かす結合テスト。`build` が `src/` を書き換えないか、`dist/` を消して `build` すると同じ中身に戻るか、2 回目の `build` で何も変わらないか、`dist/` だけで公開できるか、`memo.config.json` を変えるとページ・入口スキル・URL が変わるか、`lint --fix`・`new`・`add`・`meta`・`preview`・`config` の動き、`sync` の取り込み（上書きする・残す・消す・見比べる、止める条件）など。公開ファイルの許可リスト（下書き・`.env`・バックアップ・シンボリックリンクを公開しない）と `build --strict` が止める・止めない条件も確かめる。`RepositoryTest` だけは本物のメモで、原本がきれいか・`build` が `src/` を書き換えないか・全メモが lint を通るかを見る（環境変数 `MEMO_SKIP_REPO_TESTS` を付けると、これと本物の問題を確かめるテストは飛ばす。デプロイ前のテストはこれを付けて、メモの状態では公開を止めない） |
 | `tests/test_units.py` | 関数ごとの単体テスト。設定の読み込みとタイムゾーンの日付、サイト設定の差し込み、問題データの検証、ブロックの差し込み位置と冪等性、CSS の化けの修正、Markdown 変換、`</script>` のエスケープなど |
 | `tests/snapshot.py` | テストではなく道具。全メモの `build`（`dist/` の中身）・`lint`・`preview` と各コマンドの出力をフォルダに保存する。リファクタリングの前後で 1 回ずつ実行し、`diff -r` で何も出なければ出力は変わっていない |
 | `tests/helpers.py` | 「作業用リポジトリ」を作る共通処理（`Workspace()` はサンプル、`Workspace(real=True)` は本物のメモ） |
@@ -577,7 +586,7 @@ python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保�
 | `.github/workflows/` | デプロイ・テスト・アクセント色の固定のワークフロー |
 | `src/index.html`・`src/quiz.html`・`src/settings.html`・`src/roadmap.html`・`src/assets/` | トップ・クイズ・設定・ロードマップのページ、クイズの共通ファイル、アイコン（ロードマップはオプション。使うなら `ROADMAP` の例を自分のテーマに書き換える） |
 | `branding/` | アイコンと OGP 画像の生成元 |
-| `memo.config.json`・`README.md`・`CLAUDE.md`・`memo-detail.md`・`LICENSE`・`.gitignore` | 設定・説明（`CLAUDE.md` はリポジトリで作業する Claude への案内）・ライセンス |
+| `memo.config.json`・`README.md`・`CLAUDE.md`・`memo-detail.md`・`LICENSE`・`.gitignore` | 設定・説明（`CLAUDE.md` はリポジトリで作業する Claude への案内）・ライセンス。テンプレートから作ったあとに memo-kit の更新を取り込むときは `sync` が使う `.memo-kit-sync` も加わる（[memo-kit の更新を取り込む](#memo-kit-の更新を取り込む)） |
 
 **サンプルの中身（消すもの）**
 
@@ -607,3 +616,27 @@ python3 -B -m unittest discover -s tests   # 本物のメモを見るテスト�
 4. 独自ドメインを使うなら `src/CNAME` にドメインを 1 行書いて push し、DNS を設定する。
 
 `dist/entry-skill/SKILL.md` をアプリ側のスキルとして登録すれば、アプリからも使えます。
+
+### memo-kit の更新を取り込む
+
+テンプレートから作ったリポジトリは memo-kit と git の履歴を共有しないので、memo-kit の更新は merge では取り込めません。`python3 scripts/memo.py sync KIT`（`KIT` は memo-kit を clone したフォルダ）で取り込みます。ファイルは 3 つに分けて扱います（一覧は `scripts/memolib/sync.py`）。
+
+| 分け方 | 場所 | sync がすること |
+| --- | --- | --- |
+| 仕組み（どのサイトでも同じ） | `scripts/`・`tests/`・`.github/workflows/` の下、`memo-detail.md`・`CLAUDE.md`・`.gitignore`・`src/.nojekyll`・`src/assets/memo-quiz.*`・`branding/` の生成元 | memo-kit の中身で上書きする。前回取り込んだときは memo-kit にあって今は無いファイルは消す。3 つのフォルダの下にある、このサイトだけのファイルは消さずに「残す」と表示する |
+| サイトごとに書き換える仕組み | `.claude/skills/`、`src/index.html`・`quiz.html`・`settings.html`・`roadmap.html` | 書き換えない。前回取り込んだ memo-kit のコミット以降に memo-kit で変わったファイルを「見比べる」として、差分を見るコマンドと一緒に出す。差分を見て、必要な変更だけ手で入れる（前回の記録が無いときは、memo-kit と違うものを全部出す） |
+| サイトのもの | `memo.config.json`・`README.md`・メモ・画像・`CNAME`・`LICENSE` など | 触らない |
+
+```bash
+git clone -q --filter=blob:none https://github.com/taka1156/memo-kit.git /tmp/memo-kit
+python3 scripts/memo.py sync /tmp/memo-kit --check   # 違いを見るだけ（上書きするファイルに違いがあれば終了コード 1。「見比べる」だけなら 0）
+python3 scripts/memo.py sync /tmp/memo-kit           # 取り込む（.memo-kit-sync も更新する）
+python3 -B -m unittest discover -s tests              # 通ってからコミット（.memo-kit-sync も一緒に）
+```
+
+- 前回取り込んだ memo-kit のコミットは `.memo-kit-sync` に残ります。消すファイルと「見比べる」は、これを基準に決まります。取り込むと今の memo-kit のコミットに変わるので、「見比べる」のファイルは取り込んだその場で反映しておきます（次からは出ません）。
+- 次のときは止まります: memo-kit が git のリポジトリでない・memo-kit 側に未コミットの変更がある・このリポジトリの上書きするファイルに未コミットの変更がある（`--check` 以外）。memo-kit の `memo.config.json` の `repository` がテンプレートの値でない（ほかのサイトを渡した）・前回取り込んだコミットより古いか別のブランチの memo-kit を渡した・前回取り込んだコミットが渡した memo-kit の履歴に無い（`--depth 1` の浅い clone など。`--filter=blob:none` で clone し直す）、のときも止まります。わざとなら `--force` を付けます。
+- 3 つのフォルダ（`scripts/`・`tests/`・`.github/workflows/`）には、なるべくサイト固有のファイルを置きません。置いても消えませんが、毎回「残す」と表示されます。
+- テンプレートから作った直後や、この仕組みを入れた直後は `.memo-kit-sync` がありません。最初に一度 `sync` して、できた `.memo-kit-sync` をコミットしておきます（無いままだと、サイトごとに書き換えたスキルやページが毎回「見比べる」に出ます）。
+- `.github/workflows/kit-sync.yml`（`Check memo-kit`）が週に 1 回 `sync --check` を動かし、違いがあれば失敗にして（通知が届く）、注釈とまとめに内容を出します。何も書き換えません。`sync` 自体のエラーは、違いとは別のエラーとして出します。memo-kit 自身では動きません。memo-kit の場所を変えるときは、リポジトリ変数 `MEMO_KIT_REPOSITORY` に `owner/name` を入れます。
+- スキルの文面は、共通の手順とサイトに合わせた書き換えが混ざっているので、丸ごとは上書きできません。サイトに合わせた書き換えは最小限にしておくと、見比べるのが楽になります。

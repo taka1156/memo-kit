@@ -432,8 +432,8 @@ class SiteTest(unittest.TestCase):
     def test_inline_tag_escapes_its_closing_tag(self):
         self.assertEqual(site._inline_tag("script", "a</script>b"), "<script>\na<\\/script>b\n</script>")
 
-    @unittest.skipUnless(helpers.repo_has_memos() and config.load_config()["quiz"],
-                         "本物のメモがない（仕組みだけのリポジトリ）か、クイズを使わないサイト")
+    @unittest.skipUnless(helpers.check_real_memos() and config.load_config()["quiz"],
+                         "本物のメモがない（仕組みだけのリポジトリ）か、MEMO_SKIP_REPO_TESTS 付きか、クイズを使わないサイト")
     def test_collect_quizzes_from_repository_are_valid(self):
         qs = site.collect_quizzes(site.site_data()[0])
         self.assertTrue(qs)

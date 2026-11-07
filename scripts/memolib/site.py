@@ -28,20 +28,25 @@ def quizzes_json(quizzes: list[dict]) -> str:
     return "[\n" + ",\n".join(json.dumps(q, ensure_ascii=False) for q in quizzes) + "\n]\n"
 
 
-def site_data() -> tuple[list[dict], list[dict]]:
+def site_data(problems: list[str] | None = None) -> tuple[list[dict], list[dict]]:
     memos = sorted((read_meta(p) for p in memo_files()),
                    key=lambda m: (m["date"], m["file"]), reverse=True)
     # クイズがオフなら問題を集めない（memos.json の問題数は 0、quizzes.json は作らない）
-    return memos, collect_quizzes(memos) if CONFIG["quiz"] else []
+    return memos, collect_quizzes(memos, problems) if CONFIG["quiz"] else []
 
 
-def collect_quizzes(memos: list[dict]) -> list[dict]:
-    """全メモの問題を集める（形の崩れた問題は飛ばして警告）。"""
+def collect_quizzes(memos: list[dict], problems: list[str] | None = None) -> list[dict]:
+    """全メモの問題を集める（形の崩れた問題は飛ばして警告）。problems を渡すと警告文をそこにも足す。"""
     out = []
     for m in memos:
         qs, probs = read_quiz(read_text(SRC / m["file"]))
         if probs:
-            print(f"{m['file']}: クイズに問題あり（lint で確認）: " + " / ".join(probs), file=sys.stderr)
+            msg = f"{m['file']}: クイズに問題あり（lint で確認）: " + " / ".join(probs)
+            print(msg, file=sys.stderr)
+            # build --strict で止めるのは、問題が公開から落ちる崩れ（JSON の壊れ・形の誤り）だけ。
+            # 正解の位置の偏りや ref の飛び先は、問題自体は出せるので警告にとどめる
+            if problems is not None and (not isinstance(qs, list) or validate_quiz(qs)):
+                problems.append(msg)
         if not isinstance(qs, list):
             continue
         for q in qs:
