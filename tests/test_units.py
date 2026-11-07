@@ -472,6 +472,18 @@ class SiteTest(unittest.TestCase):
         self.assertEqual(counter.starts.get("script"), 2)  # 埋め込んだクイズの JS と問題データ
         self.assertIn(blocks.QUIZ_JS.read_text(encoding="utf-8").strip()[:40], out)
 
+    def test_preview_of_site_pages_inlines_shared_js(self):
+        for name in ("index.html", "quiz.html", "settings.html", "roadmap.html"):
+            out = site.preview_text((config.SRC / name).read_text(encoding="utf-8"), name)
+            self.assertNotIn(blocks.SITE_JS_TAG, out, name)
+            self.assertIn("root.MemoSite = api", out, name)
+
+    def test_light_accent_matches_js_table(self):
+        """設定ページ（assets/memo-site.js の lightAccent）と同じ答えになること。表は tests/js/ でも使う。"""
+        cases = json.loads((helpers.FIXTURES / "accents.json").read_text(encoding="utf-8"))["cases"]
+        for color, light in cases.items():
+            self.assertEqual(config.light_accent(color), light, color)
+
     def test_inline_tag_escapes_its_closing_tag(self):
         self.assertEqual(site._inline_tag("script", "a</script>b"), "<script>\na<\\/script>b\n</script>")
 

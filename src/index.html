@@ -243,17 +243,11 @@ footer a { color: var(--accent); }
   </footer>
 </div>
 
+<script src="assets/memo-site.js"></script>
 <script>
+// 共通の処理は assets/memo-site.js（MemoSite）
+const { esc, loadJSON, renderChoices, markChoices } = MemoSite;
 // 一覧は memos.json、ランダムクイズの問題は quizzes.json から読み込む（どちらも memo.py build が生成。memo-detail.md 参照）
-// memo.py preview で作ったプレビュー用のコピーでは、埋め込まれた window.MEMO_DATA を使う
-const MEMO_DATA = window.MEMO_DATA || null;
-async function loadJSON(name, fresh) {
-  if (MEMO_DATA && MEMO_DATA[name]) return MEMO_DATA[name];
-  // fresh: GitHub Pages の CDN キャッシュも避けて最新を取りに行く
-  const res = await fetch(fresh ? `${name}?_=${Date.now()}` : name, { cache: fresh ? 'no-store' : 'no-cache' });
-  if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
-  return res.json();
-}
 
 const list = document.getElementById('list');
 const empty = document.getElementById('empty');
@@ -280,9 +274,6 @@ function buildTags() {
     tagBox.appendChild(b);
   }
 }
-
-const esc = s => String(s).replace(/[&<>"']/g, c =>
-  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 function render() {
   const word = q.value.trim().toLowerCase();
@@ -350,28 +341,11 @@ const randomQuiz = (() => {
     $('rq-q').textContent = q.q;
     $('rq-fb').hidden = true;
     $('rq-link').hidden = true;
-    // 選択肢は毎回シャッフル（正解の位置で覚えないように）
-    const order = q.choices.map((_, k) => k).sort(() => Math.random() - 0.5);
-    const ch = $('rq-choices');
-    ch.textContent = '';
-    for (const k of order) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'rq-c';
-      b.textContent = q.choices[k];
-      b.dataset.k = k;
-      b.onclick = () => answer(q, k);
-      ch.appendChild(b);
-    }
+    renderChoices($('rq-choices'), q, k => answer(q, k), 'rq-c');
   }
 
   function answer(q, k) {
-    const ok = k === q.answer;
-    for (const b of $('rq-choices').children) {
-      b.disabled = true;
-      if (+b.dataset.k === q.answer) b.classList.add('ok');
-      else if (+b.dataset.k === k) b.classList.add('ng');
-    }
+    const ok = markChoices($('rq-choices'), q, k);
     const fb = $('rq-fb');
     fb.innerHTML = ok ? '<b class="ok">⭕ 正解</b> ' : '<b class="ng">❌ 不正解</b> ';
     fb.append((ok ? '' : `（正解: ${q.choices[q.answer]}）`) + (q.explain || ''));

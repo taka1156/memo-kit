@@ -101,6 +101,9 @@ QUIZ_CSS = ASSETS / "memo-quiz.css"
 QUIZ_JS = ASSETS / "memo-quiz.js"
 QUIZ_CSS_TAG = '<link rel="stylesheet" href="assets/memo-quiz.css">'
 QUIZ_JS_TAG = '<script src="assets/memo-quiz.js" defer></script>'
+# 仕組みのページ（index・quiz・settings・roadmap）が共通に使う処理。preview はページに埋め込む
+SITE_JS = ASSETS / "memo-site.js"
+SITE_JS_TAG = '<script src="assets/memo-site.js"></script>'
 QUIZ_BLOCK = QUIZ_BEGIN + """
 """ + QUIZ_CSS_TAG + """
 <section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">

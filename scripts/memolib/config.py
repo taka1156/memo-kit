@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import math
 import re
 from pathlib import Path
 
@@ -242,9 +243,15 @@ def hex6(color: str) -> str:
     return "#" + ("".join(ch * 2 for ch in c) if len(c) == 3 else c).lower()
 
 
+def js_round(x: float) -> int:
+    """JavaScript の Math.round と同じ丸め（0.5 は大きいほうへ）。Python の round は偶数に丸めるので、
+    設定ページ（assets/memo-site.js）と答えがずれないようにこちらを使う。"""
+    return math.floor(x + 0.5)
+
+
 def darken(color: str, ratio: float) -> str:
     c = hex6(color)
-    return "#" + "".join(f"{round(int(c[i:i + 2], 16) * ratio):02x}" for i in (1, 3, 5))
+    return "#" + "".join(f"{js_round(int(c[i:i + 2], 16) * ratio):02x}" for i in (1, 3, 5))
 
 
 def contrast_on_white(color: str) -> float:
@@ -263,7 +270,7 @@ def light_accent(accent: str, min_contrast: float = 4.5) -> str:
     """白地で文字として読める（コントラスト比 4.5 以上の）濃さまで accent を暗くする。"""
     ratio = 1.0
     while contrast_on_white(darken(accent, ratio)) < min_contrast and ratio > 0:
-        ratio = round(ratio - 0.02, 2)
+        ratio = js_round((ratio - 0.02) * 100) / 100  # memo-site.js と同じ式
     return darken(accent, max(ratio, 0))
 
 

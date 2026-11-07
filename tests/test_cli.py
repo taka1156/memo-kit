@@ -370,6 +370,15 @@ class SyncTest(unittest.TestCase):
 
 
 class LintTest(unittest.TestCase):
+    def test_lint_all_checks_every_memo_but_not_site_pages(self):
+        with Workspace() as ws:
+            out = ws.run("lint", "--all").stdout
+            for name in ws.memo_names():
+                self.assertIn(f"== {name}.html", out)
+            for page in ("index", "quiz", "settings", "roadmap"):
+                self.assertNotIn(f"== {page}.html", out)
+            self.assertNotEqual(ws.run("lint", "--all", "sample", check=False).returncode, 0)
+
     def test_sample_memos_pass_lint(self):
         with Workspace() as ws:
             p = ws.run("lint", *ws.memo_names(), check=False)
@@ -555,7 +564,7 @@ class SiteConfigTest(unittest.TestCase):
             self.assertIn('<meta name="robots" content="noindex">', roadmap)
             self.assertIn("<!-- memo:head", roadmap)
             self.assertNotIn("memo-quiz.js", roadmap)
-            self.assertIn("fetch('memos.json'", roadmap)  # チェックは一覧データから付ける
+            self.assertIn("loadJSON('memos.json')", roadmap)  # チェックは一覧データから付ける
             self.assertIn('<a href="roadmap.html">ロードマップ</a>', ws.read("index.html"))
             self.assertNotIn("roadmap.html", {m["file"] for m in json.loads(ws.read("memos.json"))})
             self.assertFalse((ws.dist / "md" / "roadmap.md").exists())
