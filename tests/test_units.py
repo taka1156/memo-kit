@@ -407,6 +407,11 @@ class MarkdownTest(unittest.TestCase):
         for hidden in (".a{}", "秘密の問題", "確認クイズ", "一覧に戻る"):
             self.assertNotIn(hidden, md)
 
+    def test_sup_and_sub_are_kept_readable(self):
+        md = markdown.html_to_markdown(page("<title>T</title>", "<p>2<sup>53</sup>−1 と H<sub>2</sub>O</p>"))
+        self.assertIn("2^53−1", md)
+        self.assertIn("H_2O", md)
+
     def test_memo_markdown_has_header_and_no_duplicate_title(self):
         m = {"file": "p.html", "title": "見出し", "desc": "説明", "tags": ["a"], "date": "2026-01-01"}
         md = markdown.memo_markdown(page(body="<h1>見出し</h1><p>本文</p>"), m)
