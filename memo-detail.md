@@ -482,7 +482,7 @@ flowchart LR
 
 `.github/workflows/kit-sync.yml`（`Check memo-kit`）は、テンプレートから作ったリポジトリで週に 1 回、仕組みのファイルが memo-kit と違っていないかを確かめて知らせます（[memo-kit の更新を取り込む](#memo-kit-の更新を取り込む)）。
 
-もう 1 つの `.github/workflows/test.yml`（`Test memo.py`）は、`scripts/`・`tests/`・クイズの共通ファイル・トップ・クイズ・設定・ロードマップのページ・`memo.config.json`・テンプレートが変わったとき（どのブランチでも、PR も含む）にテストを流します。リポジトリは書き換えません。
+もう 1 つの `.github/workflows/test.yml`（`Test memo.py`）は、`scripts/`・`tests/`・クイズと仕組みのページの共通ファイル（`src/assets/memo-quiz.*`・`memo-site.js`）・トップ・クイズ・設定・ロードマップのページ・`memo.config.json`・テンプレート・`package.json`・`package-lock.json`・`vitest.config.mjs` が変わったとき（どのブランチでも、PR も含む）に、Python のテストと JS のテスト（Node で `npm ci && npm test`）を流します。読み取りの権限だけで動き、リポジトリは書き換えません。デプロイ（`Deploy MEMO`）は Python のテストだけを流します（書き込み権限のあるジョブで外のパッケージを動かさないため）。
 
 ## コードの構成とテスト
 
@@ -550,7 +550,7 @@ python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保�
 | ファイル | 中身 |
 | --- | --- |
 | `tests/test_cli.py` | コマンドを外から動かす結合テスト。`build` が `src/` を書き換えないか、`dist/` を消して `build` すると同じ中身に戻るか、2 回目の `build` で何も変わらないか、`dist/` だけで公開できるか、`memo.config.json` を変えるとページ・入口スキル・URL が変わるか、`lint --fix`・`new`・`add`・`meta`・`preview`・`config` の動き、`sync` の取り込み（上書きする・残す・消す・見比べる、止める条件）など。公開ファイルの許可リスト（下書き・`.env`・バックアップ・シンボリックリンクを公開しない）と `build --strict` が止める・止めない条件も確かめる。`RepositoryTest` だけは本物のメモで、原本がきれいか・`build` が `src/` を書き換えないか・全メモが lint を通るかを見る（環境変数 `MEMO_SKIP_REPO_TESTS` を付けると、これと本物の問題を確かめるテストは飛ばす。デプロイ前のテストはこれを付けて、メモの状態では公開を止めない） |
-| `tests/js/` | JS のテスト（vitest・happy-dom）。`memo-site.js` の関数（シャッフル・出題の条件・選択肢のボタン・読み込み・色の計算）と、`memo-quiz.js` の表示と採点。色の計算は `tests/fixtures/accents.json` で Python と同じ答えか確かめる |
+| `tests/js/` | JS のテスト（vitest・happy-dom）。`memo-site.js` の関数（シャッフル・出題の条件・選択肢のボタン・読み込み・色の計算）、`memo-quiz.js` の表示と採点、4 ページを `preview` の 1 枚版で開いて動くか（`pages.test.mjs`）。色の計算は `tests/fixtures/accents.json` で Python と同じ答えか確かめる |
 | `tests/test_units.py` | 関数ごとの単体テスト。設定の読み込みとタイムゾーンの日付、サイト設定の差し込み、問題データの検証、ブロックの差し込み位置と冪等性、CSS の化けの修正、Markdown 変換、`</script>` のエスケープなど |
 | `tests/snapshot.py` | テストではなく道具。全メモの `build`（`dist/` の中身）・`lint`・`preview` と各コマンドの出力をフォルダに保存する。リファクタリングの前後で 1 回ずつ実行し、`diff -r` で何も出なければ出力は変わっていない |
 | `tests/helpers.py` | 「作業用リポジトリ」を作る共通処理（`Workspace()` はサンプル、`Workspace(real=True)` は本物のメモ） |
@@ -643,6 +643,7 @@ python3 scripts/memo.py sync /tmp/memo-kit           # 取り込む（.memo-kit-
 python3 -B -m unittest discover -s tests              # 通ってからコミット（.memo-kit-sync も一緒に）
 ```
 
+- 「見比べる」に出た `src/` の仕組みのページ（トップ・クイズ・設定・ロードマップ）は、取り込んだ仕組みのファイルと同じコミットで反映します。ページとスクリプトの両方が変わったときは、片方だけだとテストが落ちて公開も止まります（`git -C KIT diff 前回..今回 -- src/index.html | git apply` のように差分を当てると、サイト名などサイトごとの部分を残したまま取り込めます）。
 - 前回取り込んだ memo-kit のコミットは `.memo-kit-sync` に残ります。消すファイルと「見比べる」は、これを基準に決まります。取り込むと今の memo-kit のコミットに変わるので、「見比べる」のファイルは取り込んだその場で反映しておきます（次からは出ません）。
 - 次のときは止まります: memo-kit が git のリポジトリでない・memo-kit 側に未コミットの変更がある・このリポジトリの上書きするファイルに未コミットの変更がある（`--check` 以外）。memo-kit の `memo.config.json` の `repository` がテンプレートの値でない（ほかのサイトを渡した）・前回取り込んだコミットより古いか別のブランチの memo-kit を渡した・前回取り込んだコミットが渡した memo-kit の履歴に無い（`--depth 1` の浅い clone など。`--filter=blob:none` で clone し直す）、のときも止まります。わざとなら `--force` を付けます。
 - memo-kit にサイトのもの（サンプルのメモや画像のような、各サイトが自分で持つファイル）を新しく足すときは、`SITE_PATTERNS` にも足します。足し忘れると、各サイトに取り込まれてしまいます。

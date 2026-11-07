@@ -8,5 +8,8 @@
   "devDependencies": {
     "happy-dom": "21.0.4",
     "vitest": "5.1.0"
+  },
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
   }
 }

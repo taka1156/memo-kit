@@ -52,6 +52,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 python3 -B -m unittest discover -s tests      # 全部通ることを先に確かめる（15 秒ほど）
+npm ci && npm test                            # 仕組みのページや src/assets の JS を変えるときは、こちらも
 ```
 
 通らなければ、変更を始める前にその原因を伝える。
@@ -82,6 +83,7 @@ diff -r <スクラッチパッド>/before <スクラッチパッド>/after   # �
 
 ```bash
 python3 -B -m unittest discover -s tests          # 全部通る
+npm test                                          # ページや src/assets の JS を変えたとき
 python3 -B scripts/memo.py build && git status --short   # dist/ を作り直しても src/ に差分が出ない
 python3 -B -m py_compile scripts/memo.py scripts/memolib/*.py tests/*.py
 ```

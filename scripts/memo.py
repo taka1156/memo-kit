@@ -251,7 +251,8 @@ def cmd_sync(args) -> int:
         print(f"{sync.SELF}（取り込む・取り込まないの決まり）も新しくなったので、コミットしてからもう一度 sync を実行し、"
               "取り込み漏れがないか確かめる")
     if p.count:
-        print("テストを流してからコミットする（python3 -B -m unittest discover -s tests）")
+        print("テストを流してからコミットする（python3 -B -m unittest discover -s tests と npm ci && npm test）。"
+              "「見比べる」に出た src/ のページは、テストが通るよう同じコミットで反映する")
     return 0
 
 

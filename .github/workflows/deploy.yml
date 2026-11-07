@@ -51,21 +51,12 @@ jobs:
           fi
 
       # テストに落ちたら公開しない（壊れた memo.py で dist ブランチを上書きしないため）。
+      # JS のテスト（npm）はここでは動かさない（書き込み権限のあるジョブで外のパッケージを動かさないため。test.yml が流す）。
       # 本物のメモの検査（全メモの lint など）は飛ばす。メモの指摘は下の lint の注釈と build --strict に任せる
       - name: Test
         env:
           MEMO_SKIP_REPO_TESTS: "1"
         run: python3 -B -m unittest discover -s tests
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: JS tests
-        run: |
-          npm ci --no-audit --no-fund
-          npm test
 
       # lint の指摘は公開を止めない（GitHub の画面から上げた HTML も一覧に載せるため）。指摘があれば注釈で目立たせる
       - name: Lint memos (report only)
