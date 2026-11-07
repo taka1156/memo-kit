@@ -152,4 +152,7 @@ python3 scripts/memo.py preview 下書き.html -o <スクラッチパッド>/NAM
 
 ## 書き終えたら
 
-memo-publish の手順 4 以降（lint → meta → build → ファクトチェック → commit/push → 報告）で登録する（`new` で作ったので取り込み手順 3 は不要）。
+保存を頼まれているか（`.claude/skills/ROUTING.md` の「保存するかどうか」）で分ける。
+
+- 頼まれていない（「作って」「まとめて」だけ）: 下の「会話内でプレビューするとき」の手順で見せて、保存するかを聞く。ここで止める。
+- 頼まれている: memo-publish の手順 4 以降（lint → meta → build → プレビュー → ファクトチェック → commit/push → 報告）で登録する（`new` で作ったので取り込み手順 3 は不要）。
