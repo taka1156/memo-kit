@@ -352,8 +352,8 @@ const randomQuiz = (() => {
     fb.append((ok ? '' : `（正解: ${q.choices[q.answer]}）`) + (q.explain || ''));
     fb.hidden = false;
     const link = $('rq-link');
-    link.href = q.file + (!ok && q.ref ? q.ref : '');
-    link.textContent = ok ? 'このメモを読む →' : '本文で確認する →';
+    link.href = q.file + (q.ref || '');
+    link.textContent = 'メモを開く →';
     link.hidden = false;
   }
 
