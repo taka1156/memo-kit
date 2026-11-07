@@ -6,7 +6,7 @@ Claude に作ってもらった図解つきの解説ページ（HTML）を、Git
 - トップページ: `src/index.html`（メモ一覧・検索・タグ絞り込み・ランダムクイズ）
 - クイズページ: `src/quiz.html`（ランダム 10 問・カテゴリ別 10 問（カテゴリは複数選べる）。最後にスコアと正答一覧、本文へのリンク。タイムアタックは制限時間 30 秒／1 分／3 分で、ランダムかカテゴリ（複数可）を選んで何問正解できるかを競い、答えるとすぐ次へ進んで解説は結果にまとめて出す）
 - 設定ページ: `src/settings.html`（アクセント色を候補から選ぶか自分で決めて試し、GitHub Actions でサイト全体に固定する。下の「アクセント色を変える」）
-- ロードマップ（オプション）: `src/roadmap.html`（書いたメモとこれから書くテーマのチェックリスト。メモを公開すると自動でチェックが付く。`memo.config.json` に `"roadmap": true` を書くと公開され、各ページ上部のナビとトップページのフッターからリンクされる。詳しくは [memo-detail.md の「ロードマップ（オプション）」](memo-detail.md#ロードマップオプション)）
+- ロードマップ（オプション）: `src/roadmap.html`（書いたメモとこれから書くテーマのチェックリスト。`memo.config.json` の `roadmap` で有効にする。下の「3. `memo.config.json` を書き換える」）
 - AI 向けの Markdown 版: `md/` と `llms.txt`（`build` が作る。公開 URL を渡せば、リポジトリを繋いでいない会話でも Claude が過去のメモを読める）
 - 設定: `memo.config.json`（サイト名・説明・リポジトリ・ブランチ・タイムゾーン・アイコンと OGP 画像。コードやスキルには直接書かない）
 - 原本と公開物: `src/` には手で書く原本だけを置きます（単体で開いて見るものではありません）。`memo.py build` が自動生成ブロックや一覧データを入れた公開用のサイト一式を `dist/` に書き出し、GitHub Actions がその中身を **dist ブランチ**にコミットして GitHub Pages で公開します。生成物はデフォルトブランチに入りません
@@ -33,7 +33,7 @@ GitHub でこのリポジトリの「Use this template」→「Create a new repo
 
 ```bash
 find src -maxdepth 1 -name '*.html' ! -name index.html ! -name quiz.html ! -name settings.html ! -name roadmap.html -delete   # サンプルのメモ
-rm -rf dist                                                                            # 生成物（build で作り直す。コミットはされない）
+rm -rf dist                                                                            # 生成物（build で作り直す）
 ```
 
 ### 3. `memo.config.json` を書き換える
@@ -57,10 +57,10 @@ rm -rf dist                                                                     
 - `branch` はリポジトリのデフォルトブランチ（原本を置く。スキルの push 先）。
 - `deploy_branch` は `build` の出力を置く公開用のブランチ（既定 `dist`。Actions が作る）。`branch` と同じにはできません。
 - `quiz` は確認クイズを使うか（既定 `true`）。`false` にすると、クイズのページ（`quiz.html`）・全問題のデータ・各メモのクイズ表示・トップページのランダムクイズを作らず、スキルも新しいメモにクイズを書きません。
-- `roadmap` はロードマップ（`src/roadmap.html`）を使うか（既定 `false`）。`true` にすると、`build` がロードマップのページを `dist/` に出し、各ページ上部のナビとトップページのフッターに「ロードマップ」のリンクを出します。`false` ならページもリンクも作りません（原本の `src/roadmap.html` は残るので、`true` に戻して `build` すれば元どおり出ます）。項目は `src/roadmap.html` の `ROADMAP` に書き、メモを公開すると自動でチェックが付きます。項目の決め方やその順にメモを書く手順は `memo-roadmap` スキルが受け持ちます。詳しくは [memo-detail.md の「ロードマップ（オプション）」](memo-detail.md#ロードマップオプション)。
+- `roadmap` はロードマップ（`src/roadmap.html`）を使うか（既定 `false`）。`true` にすると、`build` がロードマップのページを `dist/` に出し、各ページ上部のナビとトップページのフッターに「ロードマップ」のリンクを出します。`false` ならページもリンクも作りません（原本の `src/roadmap.html` は残るので、`true` に戻して `build` すれば元どおり出ます）。項目は `src/roadmap.html` の `ROADMAP` に書き、メモを公開すると自動でチェックが付きます（項目決めは `memo-roadmap` スキル）。詳しくは [memo-detail.md の「ロードマップ（オプション）」](memo-detail.md#ロードマップオプション)。
 - 書き間違い（JSON の書式・型・範囲）は、`memo.py` を実行したときにどの項目をどう直すかを示して止まります。
 - `branding` はサイト全体のアクセント色と、アイコン・OGP 画像の文字・色です。
-  - `accent` はダークモード、`accent_light` はライトモードのアクセント色。全ページ（トップ・クイズ・各メモ）に `build` が反映し（`dist/` 側のページ）、画像にも同じ色を使います。`accent_light` を省くと、`accent` を白地で読める濃さまで自動で暗くします。
+  - `accent` はダークモード、`accent_light` はライトモードのアクセント色。全ページ（トップ・クイズ・各メモ）に `build` が反映し、画像にも同じ色を使います（公開後は設定ページからも変えられます。下の「アクセント色を変える」）。`accent_light` を省くと、`accent` を白地で読める濃さまで自動で暗くします。
   - `title`・`tagline`・`url`・`mark`・`icon`・`theme` は画像用。空欄はサイト名・説明・公開 URL から埋まります。項目の説明は [memo-detail.md の「サイトごとの設定」](memo-detail.md#サイトごとの設定memoconfigjson) にあります。
 
 ### 4. 作り直して確かめる
@@ -79,12 +79,12 @@ python3 -B -m unittest discover -s tests   # テスト
 - **Actions の書き込み権限**: Settings → Actions → General → Workflow permissions を「Read and write permissions」にする（`Deploy MEMO` が dist ブランチにコミット・push するため）。
 - **最初のデプロイ**: 書き込み権限を付けたあとに push する（または Actions の画面から `Deploy MEMO` を「Run workflow」で実行する）と、dist ブランチができます。
 - **Pages**: dist ブランチができたら、Settings → Pages → Source を「Deploy from a branch」、ブランチを `dist`、フォルダを `/ (root)` にする。
-- 独自ドメインを使うなら `src/CNAME` にドメインを 1 行書いて push し、DNS を設定する（テンプレートには `src/CNAME` を入れていません。無ければ `https://<owner>.github.io/<name>/` で公開されます）。
+- 独自ドメインを使うなら `src/CNAME` にドメインを 1 行書いて push し、DNS を設定する（テンプレートには `src/CNAME` を入れていません。公開 URL の決まり方は冒頭の一覧）。
 
 ### 6. Claude から使う
 
 - **Claude Code や、リポジトリを繋いだ claude.ai の会話**: `.claude/skills/` のスキルがそのまま使えます（下の「Claude に頼むとき」）。
-- **claude.ai のアプリ**: `dist/entry-skill/SKILL.md`（`build` が設定から生成。dist ブランチにも入る）をアプリ側のスキルとして登録します（下の「アプリ（claude.ai）から使うとき」）。
+- **claude.ai のアプリ**: `build` が作る入口スキルをアプリ側のスキルとして登録します（同じく下の「Claude に頼むとき」）。
 
 ## アクセント色を変える
 
@@ -95,8 +95,7 @@ python3 -B -m unittest discover -s tests   # テスト
 3. Actions が `memo.config.json` を書き換え、アイコン・OGP 画像を同じ色で作り直してコミットし、続けて `Deploy MEMO` で全ページを作り直して公開します。3〜5 分でサイトに反映されます（画像はそのままでよければ、実行時に「アイコン・OGP 画像も…」のチェックを外すと 1〜2 分）。
 
 - 実行できるのはリポジトリに書き込み権限がある人だけです（ページを見た人は色を試せるだけで、変えられません）。
-- 手元では `python3 scripts/memo.py accent '#3ddc97' '#0f7a50'` で `memo.config.json` を書き換えて push しても同じです（`build` は手元での確認用。公開は `Deploy MEMO` が行う）。
-- 手元で変えたときは、画像も揃えるなら `python3 branding/render.py` も実行してコミットします（`memo.py accent` と `build` だけでは画像は変わりません）。
+- 手元では `python3 scripts/memo.py accent '#3ddc97' '#0f7a50'` で `memo.config.json` を書き換えて push しても同じです。ただし画像は変わらないので、揃えるなら `python3 branding/render.py` も実行してコミットします。
 
 ## 必要なもの
 
@@ -109,42 +108,10 @@ python3 -B -m unittest discover -s tests   # テスト
 
 ## Claude に頼むとき
 
-このリポジトリで作業している Claude（claude.ai でリポジトリを繋いだ会話、または Claude Code）は、`.claude/skills/` のスキルを使います。
+`.claude/skills/` のスキルが、メモの作成・登録・ファクトチェック・参照・ロードマップ・仕組みの修正を受け持ちます。「〜の図解ページを作って」「この HTML をメモに入れて」「さっきの説明をメモにして」のように頼めば、Claude が合うスキルを選びます。どの依頼でどのスキルを使うかは [`.claude/skills/ROUTING.md`](.claude/skills/ROUTING.md) にあります。
 
-| 言い方の例 | スキル | やること |
-| --- | --- | --- |
-| 「この HTML をメモに入れて」 | `memo-publish` | 崩れ修正 → タイトル・説明・タグ付け → 一覧更新 → ファクトチェック → push |
-| 「〜の図解ページを作って」 | `memo-style` | デザイン規約とテンプレートに沿って新規作成 |
-| 「さっきの説明をメモにして」 | `memo-from-chat` | 会話内容をページ化して、ファクトチェックを通して登録まで |
-| 「〇〇をファクトチェックして」 | `memo-factcheck` | サブエージェントで独立に事実確認 → 指摘を報告 → 確認後に修正・push |
-| 「前に〜のメモ書いたよね」「〜のメモのここを直して」 | `memo-reference` | Markdown 版（build で作る `dist/md/`）で探して読む／直すときは HTML の該当箇所だけ編集 → 変えた箇所をファクトチェック → push |
-| 「ロードマップを作って」「次のメモを書いて」「ロードマップを見直して」 | `memo-roadmap` | ロードマップ（オプション）の項目を相談して決める／優先度の順に 1 本ずつ書いて登録 → 項目を更新 → push |
-| 「memo.py を直して」「コマンドを追加して」「リファクタして」 | `memo-maintain` | テストを流す → 変更 → 出力の前後比較・テスト → memo-detail.md を更新 → push |
-
-新しい会話では最初に「`<owner>/<name>` リポジトリで作業して」（自分のリポジトリ名）と伝えるとスキルが効きます。
-
-## アプリ（claude.ai）から使うとき
-
-アプリ側に置くのは「このリポジトリを取ってきて、ここのスキルに従う」だけの入口スキルです。手順やデザイン規約はすべてこのリポジトリが唯一の情報源で、アプリ側には書きません。
-入口スキルの中身は `memo.py build` が `memo.config.json` のリポジトリ名とブランチから `dist/entry-skill/SKILL.md` に作ります（dist ブランチと公開サイトの `/entry-skill/SKILL.md` にもあります）。設定を変えたらアプリ側に貼り直してください。
-
-入口スキルは依頼に応じて次のように振り分けます（上の表と同じ対応で、違いは保存のタイミングだけ）。
-
-| 依頼 | 使うスキル | 保存 |
-| --- | --- | --- |
-| 「〇〇を HTML で（図とともに）まとめて」「図解ページにして」 | `memo-style` で作り、`memo.py preview` で 1 枚にまとめた HTML を会話内でプレビューする（`memo.py new` は使わずテンプレートをコピー） | **しない**。「保存して」と言われたら `memo-publish` で登録 |
-| 「保存して」「メモに入れて」 | `memo-publish` | する |
-| 「さっきの説明をメモにして」 | `memo-from-chat` | する |
-| 「ファクトチェックして」 | `memo-factcheck` | 指摘を確認してもらってから修正・push |
-| 「前に〜のメモ書いたよね」「メモに〜ってある？」 | `memo-reference` | しない（参照だけ） |
-| 「〜のメモのここを直して」 | `memo-reference`（部分修正） | する |
-| 「ロードマップを作って」「見直して」 | `memo-roadmap` | 項目を確認してもらってから push |
-| 「次のメモを書いて」 | `memo-roadmap`（ロードマップの順に `memo-style` で作り `memo-publish` で登録） | する |
-| 「memo.py を直して」「仕組みを変えて」 | `memo-maintain` | テストが通ってから push |
-
-メモの本文を変えて push するときは、どの流れでも push の前に `memo-factcheck` でファクトチェックします（仕組みだけの変更やタイトル・タグだけの変更は除く）。
-
-スキルを追加したら、上の表とこの表に 1 行足せば入口スキル側の変更は不要です。
+- **Claude Code や、リポジトリを繋いだ claude.ai の会話**: 新しい会話では最初に「`<owner>/<name>` リポジトリで作業して」（自分のリポジトリ名）と伝えるとスキルが効きます。
+- **claude.ai のアプリ**: `memo.py build` が `memo.config.json` のリポジトリ名とブランチから入口スキル `dist/entry-skill/SKILL.md` を作ります（dist ブランチと公開サイトの `/entry-skill/SKILL.md` にもあります）。これをアプリ側のスキルとして登録します。入口スキルは「このリポジトリを取ってきて、ここのスキルに従う」だけのもので、手順やデザイン規約はアプリ側には書きません。設定を変えたら貼り直してください。
 
 ## 仕組みと memo.py
 
