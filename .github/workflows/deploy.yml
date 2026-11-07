@@ -40,7 +40,7 @@ jobs:
 
       - name: Lint memos (report only)
         run: |
-          memos=$(ls src/*.html | grep -v -e '/index.html$' -e '/quiz.html$' -e '/settings.html$' || true)
+          memos=$(ls src/*.html | grep -v -e '/index.html$' -e '/quiz.html$' -e '/settings.html$' -e '/roadmap.html$' || true)
           if [ -z "$memos" ]; then
             echo "メモがまだないので lint は省略"
           else
