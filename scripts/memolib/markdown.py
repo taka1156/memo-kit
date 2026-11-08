@@ -55,6 +55,8 @@ class _ToMarkdown(HTMLParser):
         self.table: list[list[str]] | None = None
         self.cell: list[str] | None = None
         self.saved_line: list[str] | None = None
+        # よくある誤解（details.myth）。✗・✓ は CSS で付くので、Markdown では言葉で区別する
+        self.myth = ""  # "" / "open"（summary 待ち）/ "answer"（説明の最初の段落待ち）
 
     # -- 出力
     def flush(self) -> None:
@@ -150,6 +152,17 @@ class _ToMarkdown(HTMLParser):
             self.links.append((len(self.line), a.get("href", "")))
         elif tag in ("sup", "sub"):
             self.line.append("^" if tag == "sup" else "_")  # 2<sup>53</sup> → 2^53（そのままだと 253 に読めてしまう）
+        elif tag == "details" and "myth" in a.get("class", "").split():
+            self.flush()
+            self.myth = "open"
+        elif tag == "summary" and self.myth == "open":
+            self.flush()
+            self.line.append("✗ 誤解: ")
+            self.myth = "answer"
+        elif tag == "p" and self.myth == "answer":
+            self.flush()
+            self.line.append("✓ 正しくは: ")
+            self.myth = ""
         elif tag in _MD_BLOCKS:
             self.flush()
         elif tag in _MD_SPACED:

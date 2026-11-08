@@ -459,6 +459,12 @@ class DesignTest(unittest.TestCase):
 
 
 class MarkdownTest(unittest.TestCase):
+    def test_myth_is_marked_in_words(self):
+        md = markdown.html_to_markdown(page("<title>T</title>", '<h2 id="myths">よくある誤解</h2>'
+                                            '<details class="myth"><summary>A は B</summary><p>違う。C</p></details>'))
+        self.assertIn("✗ 誤解: A は B", md)
+        self.assertIn("✓ 正しくは: 違う。C", md)
+
     HTML = page("<title>T</title><style>.a{}</style>", """
 <h2 id="s1">見出し</h2>
 <p>本文 <b>強調</b> と <code>c</code>。<a href="docker.html#x">別メモ</a> <a href="index.html">一覧</a> <a href="https://e.com">外</a></p>
