@@ -79,12 +79,15 @@ class BuildTest(unittest.TestCase):
         """dist/ だけで公開できること: 原本の共通ファイルのコピーと、生成物がそろっている。"""
         with Workspace() as ws:
             for rel in ("index.html", "quiz.html", "settings.html", "sample.html", "sample-plain.html",
-                        "CNAME", "assets/memo-quiz.css", "assets/memo-quiz.js", "memos.json", "quizzes.json",
+                        "CNAME", "assets/memo-quiz.css", "assets/memo-quiz.js", "assets/memo-parts.css",
+                        "memos.json", "quizzes.json",
                         "llms.txt", "md/sample.md", str(ENTRY_REL)):
                 self.assertTrue((ws.dist / rel).is_file(), rel)
             self.assertEqual((ws.dist / "assets" / "memo-quiz.js").read_bytes(),
                              (ws.src / "assets" / "memo-quiz.js").read_bytes())
             self.assertIn("<!-- memo:head", ws.read("sample.html"))
+            self.assertIn("assets/memo-parts.css", ws.read("sample.html"))  # メモには共通部品
+            self.assertNotIn("assets/memo-parts.css", ws.read("index.html"))  # 仕組みのページには入れない
             self.assertNotIn("<!-- memo:head", (ws.src / "sample.html").read_text(encoding="utf-8"))
 
     def test_build_publishes_only_allowed_files(self):
@@ -392,7 +395,8 @@ class LintTest(unittest.TestCase):
                 '<meta name="description" content="d"><meta name="memo:tags" content="a">'
                 '<meta name="memo:date" content="2026-01-01">'
                 "<style>\n- { margin: 0 }\nbody { font-family: “Noto Sans JP” }\n</style></head>"
-                '<body><h2 id="s">S</h2>'
+                '<body><div class="card summary"><strong>ざっくり言うと</strong><ul><li>1</li><li>2</li><li>3</li></ul></div>'
+                '<h2 id="s">S</h2>'
                 '<script type="application/json" id="memo-quiz">'
                 '[{"q":"Q","choices":["a","b"],"answer":1,"ref":"#s"}]</script></body></html>',
                 encoding="utf-8")
@@ -445,6 +449,8 @@ class PreviewTest(unittest.TestCase):
             text = out.read_text(encoding="utf-8")
             self.assertNotIn("assets/memo-quiz.css", text)
             self.assertNotIn("assets/memo-quiz.js", text)
+            self.assertNotIn("assets/memo-parts.css", text)
+            self.assertIn("details.myth", text)  # 共通部品の CSS の中身
             self.assertIn("#memo-quiz-ui", text)  # CSS の中身
             self.assertIn("function refLink", text)  # JS の中身
             self.assertEqual((ws.src / "sample.html").read_bytes(), src_before)

@@ -137,7 +137,7 @@ GitHub の画面から HTML を直接アップロードしても、Actions の `
 
 | 生成物 | 中身 |
 | --- | --- |
-| 各ページ | 原本に、アイコン・OGP・アクセント色（`memo:head`）とクイズの表示枠（`memo:quiz`）、サイト名などを差し込んだもの |
+| 各ページ | 原本に、アイコン・OGP・共通部品の CSS・アクセント色（`memo:head`）とクイズの表示枠（`memo:quiz`）、サイト名などを差し込んだもの |
 | `memos.json` | 全メモのタイトル・説明・タグ・日付・問題数（トップページが読む） |
 | `quizzes.json` | 全メモの問題（ランダムクイズとクイズページが読む） |
 | `md/NAME.md`・`llms.txt` | AI 向けの Markdown 版と目次 |
@@ -201,7 +201,7 @@ claude.ai のアプリから使うときは、`build` が作る `dist/entry-skil
 | 公開サイト | すべて動く |
 | `build` してから `python3 -m http.server -d dist` | すべて動く |
 | `memo.py preview` で作った 1 枚 | すべて動く |
-| HTML ファイルを直接開く | クイズ・一覧が出ない |
+| HTML ファイルを直接開く | クイズ・一覧が出ない。共通部品（ざっくり言うと・よくある誤解など）の見た目も付かない |
 
 ## GitHub Actions
 
@@ -209,6 +209,7 @@ claude.ai のアプリから使うときは、`build` が作る `dist/entry-skil
 | --- | --- | --- |
 | `Deploy MEMO`（`deploy.yml`） | デフォルトブランチへの push | テスト → lint → `build --strict` → dist ブランチにコミット |
 | `Test memo.py`（`test.yml`） | スクリプト・テストなどの変更（PR も含む） | Python と JS のテスト |
+| `Check parts look`（`visual.yml`） | 共通部品の CSS・テンプレートなどの変更（PR も含む） | 変更の前後のスクリーンショットを比べ、変わっていれば警告と差分画像 |
 | `Set accent color`（`set-accent.yml`） | 手動 | アクセント色を固定して公開 |
 | `Check memo-kit`（`kit-sync.yml`） | 週 1 回（テンプレートから作ったリポジトリだけ） | memo-kit との違いを知らせる |
 
@@ -222,6 +223,7 @@ flowchart LR
   cli --> lint["lint.py"] & sync["sync.py"]
   dist --> md["markdown.py"] & site["site.py"] & entry["entry.py"]
   md & site & lint --> blocks["blocks.py"]
+  lint --> design["design.py<br/>見た目の決まり"] --> config
   blocks --> meta["meta.py"] --> config["config.py"]
 ```
 
@@ -243,6 +245,7 @@ npm ci && npm test                         # 仕組みのページの JS のテ�
 | アイコン・OGP 画像 | `memo.config.json` の `branding`、デザインは `branding/` → `python3 branding/render.py` |
 | トップ・クイズ・設定・ロードマップのページ | `src/index.html` など（上部のナビは 4 ページで揃える） |
 | クイズの見た目・動き | `src/assets/memo-quiz.css`・`.js` |
+| ざっくり言うと・よくある誤解などの共通部品の見た目 | `src/assets/memo-parts.css`（見本はテンプレート） |
 | 新しいメモの雛形 | `.claude/skills/memo-style/template.html` |
 | スクリプトの処理 | `scripts/memolib/`（Claude に頼むときは memo-maintain スキル） |
 

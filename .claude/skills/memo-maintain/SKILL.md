@@ -11,7 +11,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 ## 守ること
 
 - **依存してよいのは memo-kit だけ。** ほかのサイト（同じ memo-kit から作った姉妹サイトなど）の URL・`llms.txt`・リポジトリを、スキル・スクリプト・ワークフロー・ページから参照しない。サイトが増えるたびに全サイトを直すことになる。
-- **標準ライブラリだけ。** pip で何かを入れないと動かない形にしない（BeautifulSoup・pytest なども使わない。テストは `unittest`）。仕組みのページの JS のテストだけは Node の vitest を使う（`npm test`。`memo.py` は Node に依存しない）。
+- **標準ライブラリだけ。** pip で何かを入れないと動かない形にしない（BeautifulSoup・pytest なども使わない。テストは `unittest`）。仕組みのページの JS のテストだけは Node の vitest を使う（`npm test`。`memo.py` は Node に依存しない）。共通部品の見た目の比較（`tests/visual/`）だけは Node の Playwright を使う。
 - **入口は `python3 scripts/memo.py` のまま。** スキル・README・Actions がこの呼び方に依存している。処理の本体は `scripts/memolib/` に置き、`memo.py` はコマンドの受け付けだけにする。
 - **置き場所を知っているのは `memolib/config.py` だけ。** 他のモジュールやスキルでパスを組み立てない。
 - **サイトごとの値は `memo.config.json` だけ。** サイト名・リポジトリ・ブランチ・タイムゾーン・ドメイン・アクセント色を、コード・スキル・ワークフロー・`index.html`／`quiz.html`／`settings.html` に直接書かない（ページには `data-memo-site` の目印を付けて `build` に入れさせる。スキルは `memo.py config KEY` で読む）。仕組みだけを別のリポジトリに持っていけるようにするため。
@@ -34,6 +34,9 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 | `src/assets/memo-site.js` | 仕組みのページ（index・quiz・settings・roadmap）で共通の処理: 読み込み・エスケープ・シャッフル・出題の条件・選択肢のボタン・色の計算（`lightAccent` は `config.light_accent` と同じ式。変えたら両方を直す。`tests/fixtures/accents.json` で突き合わせる） |
 | `tests/js/` | JS のテスト（vitest。`npm ci` のあと `npm test`） |
 | `memolib/lint.py` | 崩れのチェックと自動修正 |
+| `memolib/design.py` | 見た目の決まり（共通部品の形・アクセント色の使い場所・解説用の色）のチェック。lint から呼ぶ |
+| `src/assets/memo-parts.css` | メモの共通部品の見た目（build が memo:head から読み込む） |
+| `tests/visual/` | テンプレートのスクリーンショットを撮る・比べる（Node の Playwright。`visual.yml` が使う） |
 | `memolib/markdown.py` | AI 向けの Markdown 版 |
 | `memolib/site.py` | memos.json・quizzes.json、会話内プレビュー用の 1 枚の HTML |
 | `memolib/sync.py` | memo-kit から仕組みのファイルを取り込む（`memo.py sync`）。取り込まない・見比べるだけのファイルの一覧（それ以外はすべて取り込む） |
@@ -43,7 +46,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 | `tests/snapshot.py` | 全コマンドの出力をフォルダに保存する（前後比較用。本物のメモがなければサンプルで） |
 | `tests/fixtures/` | テスト用のサンプルのメモ 2 本と設定 |
 
-モジュール同士の依存は `config ← meta ← blocks ← lint / markdown / site ← dist ← memo.py`（と `config ← entry ← dist`）の一方向。逆向きの import を作らない。
+モジュール同士の依存は `config ← meta ← blocks ← lint / markdown / site ← dist ← memo.py`（と `config ← entry ← dist`、`config ← design ← lint`）の一方向。逆向きの import を作らない。
 
 ## 手順
 

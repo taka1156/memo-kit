@@ -75,8 +75,6 @@ pre {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -115,6 +113,15 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <div class="wrap">
   <h1>クイズのないメモ</h1>
   <p class="subtitle">クイズなしの最小のページ</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>確認クイズの問題データを書かないページ</li>
+      <li>一覧には問題数 0 で載る</li>
+      <li>ランダムクイズにも出題されない</li>
+    </ul>
+  </div>
 
   <h2 id="overview">概要</h2>
   <p>クイズがないページは一覧に問題数 0 で載る。</p>

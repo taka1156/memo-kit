@@ -10,7 +10,7 @@ import unittest
 from html.parser import HTMLParser
 
 import helpers  # noqa: F401  scripts/ を import できるようにする
-from memolib import blocks, config, entry, lint, markdown, meta, site
+from memolib import blocks, config, design, entry, lint, markdown, meta, site
 
 
 def page(head: str = "", body: str = "") -> str:
@@ -331,6 +331,11 @@ class QuizTest(unittest.TestCase):
         self.assertTrue(blocks.QUIZ_CSS.is_file())
         self.assertTrue(blocks.QUIZ_JS.is_file())
 
+    def test_parts_css_only_on_memos(self):
+        self.assertTrue(blocks.PARTS_CSS.is_file())
+        self.assertIn(blocks.PARTS_CSS_TAG, blocks.head_block(page("<title>T</title>"), "sample.html"))
+        self.assertNotIn(blocks.PARTS_CSS_TAG, blocks.head_block(page("<title>T</title>"), "index.html"))
+
 
 class LintTest(unittest.TestCase):
     def test_template_left_as_is_is_reported(self):
@@ -384,6 +389,63 @@ class LintTest(unittest.TestCase):
         joined = " / ".join(probs)
         for word in ("説明", "タグ", "日付", "全角クォート", "index.html"):
             self.assertIn(word, joined)
+
+
+SUMMARY_OK = ('<div class="card summary"><strong>ざっくり言うと</strong>'
+              "<ul><li>1 つ目</li><li>2 つ目</li><li>3 つ目</li></ul></div>")
+
+
+class DesignTest(unittest.TestCase):
+    """共通部品の形と色のルール（memolib/design.py）。"""
+
+    def probs(self, head="", body=SUMMARY_OK):
+        return design.design_check(page(head, body))[0]
+
+    def test_good_page_has_no_problems(self):
+        css = ("<style>h1{color:var(--accent)} h2{border-left:3px solid var(--accent)} a{color:var(--accent)}"
+               ".tab[aria-selected=\"true\"]{background:var(--accent)} .btn.primary{background:var(--accent)}"
+               ".x:hover{border-color:var(--accent)} input{accent-color:var(--accent)} :root{--c-me:#336699}</style>")
+        body = SUMMARY_OK + ('<h2 id="myths">よくある誤解</h2>'
+                             '<details class="myth"><summary>A は B</summary><p>違う。<code>var(--accent)</code></p></details>'
+                             '<p class="note">関連</p>')
+        self.assertEqual(self.probs(css, body), [])
+
+    def test_summary_shape(self):
+        self.assertTrue(any("ない" in p for p in self.probs(body="<p>x</p>")))
+        four = SUMMARY_OK.replace("</ul>", "<li>4</li></ul>")
+        self.assertTrue(any("3 項目" in p for p in self.probs(body=four)))
+        long = SUMMARY_OK.replace("1 つ目", "あ" * 101)
+        self.assertEqual(design.design_check(page("", long))[0], [])
+        self.assertTrue(design.design_check(page("", long))[1])  # 長さは [注意]
+
+    def test_myth_shape(self):
+        div = SUMMARY_OK + '<h2>よくある誤解</h2><div class="card myth"><p>✗ A</p><p>✓ B</p></div>'
+        joined = " / ".join(self.probs(body=div))
+        self.assertIn("<details>", joined)
+        marks = SUMMARY_OK + '<h2>よくある誤解</h2><details class="myth"><summary>「A」</summary><p>→ B</p></details>'
+        joined = " / ".join(self.probs(body=marks))
+        self.assertIn("✗ や「」", joined)
+        self.assertIn("✓ や →", joined)
+        plain = SUMMARY_OK + "<h2>よくある誤解</h2><details><summary>A</summary><p>B</p></details>"
+        self.assertTrue(self.probs(body=plain))
+
+    def test_accent_only_on_allowed_places(self):
+        for css in (".card{border-left:3px solid var(--accent)}", "ol.flow li::before{background:var(--accent)}",
+                    ".label{color:var(--accent)}", "h3{color:var(--accent)}", "h2{color:var(--accent)}"):
+            self.assertTrue(any("var(--accent)" in p for p in self.probs(f"<style>{css}</style>")), css)
+        body = SUMMARY_OK + '<svg><rect stroke="var(--accent)"/></svg><script>el.style.fill="var(--accent)"</script>'
+        self.assertTrue(any("図・JS" in p for p in self.probs(body=body)))
+
+    def test_parts_are_not_restyled_and_colors_are_semantic(self):
+        joined = " / ".join(self.probs("<style>.summary{border:0} .myth p{color:red} ol.steps > li::before{color:red}</style>"))
+        for sel in (".summary", ".myth p", "ol.steps > li::before"):
+            self.assertIn(sel, joined)
+        self.assertTrue(any("--c-ok" in p for p in self.probs("<style>:root{--c-ok:#00ff00}</style>")))
+        self.assertTrue(any("--brand" in p for p in self.probs("<style>:root{--brand:#123456}</style>")))
+        light, dark = config.accents()
+        self.assertTrue(any("近い色" in p for p in self.probs(f"<style>:root{{--c-x:{light}}}</style>")))
+        self.assertTrue(design.accent_like(dark))
+        self.assertFalse(design.accent_like("#7f7f7f" if config.accents()[0] != "#7f7f7f" else "#000000"))
 
 
 class MarkdownTest(unittest.TestCase):

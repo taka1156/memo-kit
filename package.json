@@ -7,6 +7,7 @@
   },
   "devDependencies": {
     "happy-dom": "21.0.4",
+    "playwright": "1.65.0",
     "vitest": "5.1.0"
   },
   "engines": {

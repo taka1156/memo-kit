@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 
 from .blocks import BACKLINK, BACKLINK_ID, read_quiz, strip_generated
+from .design import design_check
 
 CURLY = "‘’“”"
 
@@ -13,7 +14,8 @@ SCRIPT_RE = re.compile(r"<script\b[^>]*>(.*?)</script>", re.S | re.I)
 EXTERNAL_SCRIPT_RE = re.compile(r"<script\b[^>]*\bsrc=[\"']?(https?://[^\"'\s>]+)[^>]*>", re.I)
 # テンプレート（.claude/skills/memo-style/template.html）の仮の文。残っていたら書き換え忘れ
 TEMPLATE_PLACEHOLDERS = ("ここに図解や説明。", "ここに詳細。", "1 行のサブタイトル", "何がわかるページかを 1 文で",
-                         "<li>要点 1</li>", "〇〇したい場面で、まず選ぶべきものは？")
+                         "<li>要点 1</li>", "〇〇したい場面で、まず選ぶべきものは？", "<b>手順の見出し</b>",
+                         "誤解の文（「」で囲まない）")
 LONG_ANSWER_RATIO = 1.3  # 正解がほかの選択肢よりこれ以上長いと「長さで正解がわかる」とみなす
 
 
@@ -33,6 +35,11 @@ def quiz_notes(text: str) -> list[str]:
         return [f"クイズ: 正解だけが目立って長い問題が {len(biased)} 問（{', '.join(biased)}）。"
                 "長さで正解がわかるので、誤答も同じくらいの長さ・具体さにする"]
     return []
+
+
+def design_notes(text: str) -> list[str]:
+    """見た目の決まりのうち、直さなくても動くが見直したほうがよい点（[注意]）。"""
+    return design_check(text)[1]
 
 
 def _fix_css(css: str) -> tuple[str, list[str]]:
@@ -128,5 +135,7 @@ def lint_text(text: str, backlink: bool) -> tuple[str, list[str], list[str]]:
 
     _qs, quiz_problems = read_quiz(text)
     problems.extend(f"クイズ: {p}" for p in quiz_problems)
+
+    problems.extend(design_check(text)[0])  # 共通部品の形と色のルール（memolib/design.py）
 
     return text, fixed, problems

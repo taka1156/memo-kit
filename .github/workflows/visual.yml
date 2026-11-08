@@ -1,0 +1,77 @@
+name: Check parts look
+
+# 共通部品（src/assets/memo-parts.css）・テンプレート・それを埋め込む仕組みを変えたら、
+# 変更の前と後のテンプレートを同じマシンでスクリーンショットに撮って比べる（tests/visual/）。
+# 見た目が変わったら警告と差分画像（Artifacts の parts-look）を出すだけで、失敗にはしない。
+# 意図した変更なら問題ない。崩れていないかを差分画像で確かめる。
+on:
+  push:
+    paths:
+      - "src/assets/memo-parts.css"
+      - "src/assets/memo-quiz.css"
+      - ".claude/skills/memo-style/template.html"
+      - "scripts/memolib/blocks.py"
+      - "scripts/memolib/site.py"
+      - "tests/visual/**"
+      - ".github/workflows/visual.yml"
+  pull_request:
+    paths:
+      - "src/assets/memo-parts.css"
+      - "src/assets/memo-quiz.css"
+      - ".claude/skills/memo-style/template.html"
+      - "scripts/memolib/blocks.py"
+      - "scripts/memolib/site.py"
+      - "tests/visual/**"
+      - ".github/workflows/visual.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  look:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install Playwright
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Shoot before and after
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then BASE=$(git rev-parse HEAD~1); fi
+          git worktree add -q ../base "$BASE"
+          node tests/visual/shoot.mjs ../base out/before
+          node tests/visual/shoot.mjs . out/after
+
+      - name: Compare
+        id: compare
+        run: |
+          set +e
+          node tests/visual/compare.mjs out/before out/after out/diff | tee out/result.txt
+          code=${PIPESTATUS[0]}
+          { echo "### 共通部品の見た目"; echo; cat out/result.txt; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" = "1" ]; then echo "::warning title=共通部品の見た目::変更の前後でテンプレートの見た目が変わりました。Artifacts の parts-look の差分画像で崩れていないか確かめてください"; fi
+          [ "$code" -le 1 ]
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parts-look
+          path: out/
+          retention-days: 14

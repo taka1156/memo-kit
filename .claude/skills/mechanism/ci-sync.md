@@ -9,7 +9,9 @@
 - `concurrency` で同じブランチの実行は 1 本ずつ（途中で止めない）。dist ブランチに書くのはこれだけ。
 - JS のテストは流さない（書き込み権限のあるジョブで外のパッケージを動かさないため）。
 
-**`test.yml`（Test memo.py）**: 仕組みのファイル（`scripts/`・`tests/`・共通 JS / CSS・4 ページ・`memo.config.json`・テンプレート・`package*.json`・`vitest.config.mjs`）の変更で、どのブランチでも PR でも動く。Python と JS（`npm ci && npm test`）のテスト。読み取り権限だけ。
+**`test.yml`（Test memo.py）**: 仕組みのファイル（`scripts/`・`tests/`・共通 JS / CSS（`memo-parts.css` を含む）・4 ページ・`memo.config.json`・テンプレート・`package*.json`・`vitest.config.mjs`）の変更で、どのブランチでも PR でも動く。Python と JS（`npm ci && npm test`）のテスト。読み取り権限だけ。
+
+**`visual.yml`（Check parts look）**: 共通部品の CSS・テンプレート・それを埋め込む `blocks.py`/`site.py`・`tests/visual/` の変更で動く。変更の前（PR の base か push 前のコミット）と後のテンプレートを同じマシンで `tests/visual/shoot.mjs` で撮り、`compare.mjs` で比べる。違いがあれば警告と差分画像（Artifacts の `parts-look`）を出すだけで失敗にはしない。画像をリポジトリに置かないのは、フォントの違いでマシンごとに少しずつ変わるため。読み取り権限だけ。手元では `MEMO_CHROME=<chrome のパス>` を付けても動く。
 
 **`set-accent.yml`（Set accent color）**: 手動で色を受け取る。3 ジョブに分ける: `render`（読み取り権限のみ・認証情報なし。`memo.py accent` と、`images` がオンなら `branding/render.py`）→ `commit`（書き込み権限。`Set accent color: …` で push）→ `deploy`（Deploy MEMO を呼ぶ。Actions の push では push トリガーが動かないため）。外のパッケージは `render` でだけ動かし、版は `branding/requirements.txt` と Ubuntu の版で固定。色が不正なら何もコミットせず止める。
 

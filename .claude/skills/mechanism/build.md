@@ -22,7 +22,7 @@
 
 | ブロック | 入る場所 | 中身 | 関数 |
 | --- | --- | --- | --- |
-| `<!-- memo:head -->` | `</head>` の直前 | ファビコン・iOS アイコン・OGP・アクセント色（`<style id="memo-accent">`、`html:root` でページの `--accent` を上書き） | `head_block`・`apply_head` |
+| `<!-- memo:head -->` | `</head>` の直前 | ファビコン・iOS アイコン・OGP・共通部品の CSS（メモだけ。`assets/memo-parts.css`。ページの `<style>` より後なので同じ強さなら勝つ）・アクセント色（`<style id="memo-accent">`、`html:root` でページの `--accent` を上書き） | `head_block`・`apply_head` |
 | `<!-- memo:quiz -->` | フッター（`memo-backlink`）の直前、無ければ最後の `</body>` の直前 | クイズの表示枠と共通 CSS / JS への参照。問題データが無ければ入れない | `apply_quiz` |
 | `data-memo-site*` 属性 | 仕組みの 4 ページ | 設定値（`site_fields()`）で中身や属性を置き換える。目印は残す | `apply_site` |
 | `data-memo-if` 属性 | 仕組みのページ | 設定（`config.OPTIONAL_PAGES` の値）がオフなら要素ごと消す | `apply_site` |
@@ -38,4 +38,4 @@
 
 ## preview（`memolib/site.py` の `preview_text`）
 
-公開ページは共通ファイルを読み込むので、HTML 1 枚だけでは動かない。`preview` は自動生成ブロックを入れ、`memo-quiz.css` / `.js`（仕組みのページは `memo-site.js` も）を埋め込み、index / quiz には `window.MEMO_DATA` に JSON の中身を埋め込んで書き出す（`-o` 省略時は一時フォルダの `memo-preview/`）。元のファイルは変えない。index / quiz は `window.MEMO_DATA` があればそれを使い、無ければ fetch する。
+公開ページは共通ファイルを読み込むので、HTML 1 枚だけでは動かない。`preview` は自動生成ブロックを入れ、`memo-parts.css`・`memo-quiz.css` / `.js`（仕組みのページは `memo-site.js` も）を埋め込み、index / quiz には `window.MEMO_DATA` に JSON の中身を埋め込んで書き出す（`-o` 省略時は一時フォルダの `memo-preview/`）。元のファイルは変えない。index / quiz は `window.MEMO_DATA` があればそれを使い、無ければ fetch する。

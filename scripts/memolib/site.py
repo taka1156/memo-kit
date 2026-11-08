@@ -5,8 +5,8 @@ import json
 import re
 import sys
 
-from .blocks import (QUIZ_CSS, QUIZ_CSS_TAG, QUIZ_JS, QUIZ_JS_TAG, SITE_JS, SITE_JS_TAG, apply_generated, read_quiz,
-                     validate_quiz)
+from .blocks import (PARTS_CSS, PARTS_CSS_TAG, QUIZ_CSS, QUIZ_CSS_TAG, QUIZ_JS, QUIZ_JS_TAG, SITE_JS, SITE_JS_TAG,
+                     apply_generated, read_quiz, validate_quiz)
 from .config import CONFIG, DIST, SRC, SPECIAL_NAMES, read_text
 from .meta import memo_files, read_meta
 
@@ -81,6 +81,7 @@ def _inline_tag(tag: str, body: str) -> str:
 
 def preview_text(text: str, filename: str) -> str:
     text = apply_generated(text, filename)
+    text = text.replace(PARTS_CSS_TAG, _inline_tag("style", PARTS_CSS.read_text(encoding="utf-8")))
     text = text.replace(QUIZ_CSS_TAG, _inline_tag("style", QUIZ_CSS.read_text(encoding="utf-8")))
     text = text.replace(QUIZ_JS_TAG, _inline_tag("script", QUIZ_JS.read_text(encoding="utf-8")))
     text = text.replace(SITE_JS_TAG, _inline_tag("script", SITE_JS.read_text(encoding="utf-8")))

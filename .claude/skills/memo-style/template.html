@@ -29,6 +29,10 @@
     --chip: #18222f;
   }
 }
+/* 共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク）と
+   解説用の色（--c-ok・--c-ng・--c-warn・--c-hl）は assets/memo-parts.css にある（build・preview が読み込む）。
+   ここで書き直さない。ページ独自の色分けが要るときは、意味ごとの --c-名前 を :root に足し、凡例やラベルを付ける。
+   アクセント色（--accent）は h1・h2 の左線・段落のリンク・ボタンやタブの操作状態にだけ使う */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   background: var(--bg);
@@ -75,8 +79,6 @@ pre {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -132,6 +134,16 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <div class="panel card" id="p1">ここに図解や説明。</div>
   <div class="panel card" id="p2" hidden>ここに詳細。</div>
+
+  <h2 id="steps">手順</h2>
+  <ol class="steps">
+    <li><b>手順の見出し</b>説明。番号の丸は標準でグレー。意味があるときだけ li に class="is-ng" などを付ける</li>
+    <li class="is-ng"><b>手順の見出し</b>説明（例: 攻撃の手順だけ赤）</li>
+  </ol>
+
+  <!-- よくある誤解（必要なときだけ。使わないなら見出しごと消す）。✗・✓・開閉マークは CSS で付くので本文に書かない -->
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>誤解の文（「」で囲まない）</summary><p>正しい説明</p></details>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

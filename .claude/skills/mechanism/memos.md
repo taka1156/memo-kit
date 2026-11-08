@@ -43,4 +43,18 @@
 
 - 直す: `<style>` 内の全角クォート、`* {` が `- {` / `\*` に化けたもの、`<!DOCTYPE html>`・charset・viewport の欠落、原本に入った自動生成ブロック、フッターの「← 一覧に戻る」（`--backlink` のとき）。
 - 報告: JS の文字列区切りに全角クォートの疑い、メタ情報の欠落、一覧へのリンクが無い、クイズの崩れ、テンプレートの仮の文が残っている、外部 `<script src>` に版や `integrity` が無い（Google Fonts の `<link>` は対象外）。
-- 注意: 正解だけが目立って長い（ほかの 1.3 倍以上）問題が半分以上。
+- 報告（見た目の決まり。`memolib/design.py` の `design_check`）: 下の「共通部品と色のルール」。
+- 注意: 正解だけが目立って長い（ほかの 1.3 倍以上）問題が半分以上。「ざっくり言うと」の項目が 100 字を超える。
+
+## 共通部品と色のルール（`memolib/design.py`）
+
+共通部品の見た目は `src/assets/memo-parts.css` に 1 つだけ置く（build が memo:head から読み込み、preview は埋め込む）。書き方は memo-style の「共通部品」、見本はテンプレート。lint は次を `[要対応]` で止める。
+
+- ざっくり言うと: `<div class="card summary">` が 1 つ、`<strong>ざっくり言うと</strong>` のすぐ後に `<ul>`、`<li>` がちょうど 3 個。
+- よくある誤解: 見出し（`h2` に「誤解」）の下は `<details class="myth"><summary>誤解</summary><p>説明</p>…</details>` を並べる（後ろに「関連:」などの段落があってよい）。`class="myth"` は `<details>` にだけ。✗・✓・→・「」を本文に書かない（CSS で付く）。
+- 共通部品のセレクタ（`.summary`・`.myth`・`ol.steps` の基本形）と、共通部品が決める色（`--c-ok`・`--c-ng`・`--c-warn`・`--c-hl`）をページで書かない。
+- `var(--accent)` を使ってよいのは、`h1`・`h2` の線（border）・`a` の文字色・ボタンやタブやフォーム・操作の状態（`:hover`・`:focus`・`[aria-selected]`・`[aria-pressed]`・`[aria-current]`・`.on` など）・`accent-color` だけ。JS・SVG・style 属性では使わない（`<pre>`・`<code>` の中の例は本文なので対象外）。
+- 名前に `brand`・`accent` を含む変数（`--accent` 以外）を作らない。
+- サイトのアクセント色（`memo.config.json` の branding。ライト・ダーク）と RGB の距離が `NEAR_ACCENT` 未満の色を使わない。アクセント色を変えると、近い色を使っていたメモが新たに引っかかる。
+
+意味（凡例やラベルがあるか）は機械では判定できないので、作るときに memo-style のチェックリストで確かめる。

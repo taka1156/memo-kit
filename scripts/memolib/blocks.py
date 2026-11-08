@@ -22,7 +22,13 @@ BACKLINK = (
 )
 
 
-# ---------------------------------------------------------------- head（アイコン・OGP）
+# ---------------------------------------------------------------- head（アイコン・OGP・共通部品）
+
+# メモの共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク・解説用の色）。
+# src/assets/memo-parts.css に 1 つだけ置き、各メモの memo:head から読み込む（仕組みのページには入れない）。
+# memo:head はページの <style> の後（</head> の直前）に入るので、同じ強さのセレクタなら共通部品が勝つ。
+PARTS_CSS = ASSETS / "memo-parts.css"
+PARTS_CSS_TAG = '<link rel="stylesheet" href="assets/memo-parts.css">'
 
 def head_block(text: str, filename: str) -> str:
     m, title = parse_meta(text)
@@ -50,6 +56,10 @@ def head_block(text: str, filename: str) -> str:
         '<meta property="og:image:width" content="1200">',
         '<meta property="og:image:height" content="630">',
         '<meta name="twitter:card" content="summary_large_image">',
+    ]
+    if filename not in SPECIAL_NAMES:
+        lines.append(PARTS_CSS_TAG)  # メモの共通部品（ページの <style> より後に読み込む）
+    lines += [
         accent_style(),
         HEAD_END,
     ]
