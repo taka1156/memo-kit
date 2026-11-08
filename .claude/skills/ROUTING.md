@@ -23,7 +23,7 @@ Claude Code や、リポジトリを繋いだ claude.ai の会話。
 | 「〇〇をファクトチェックして」 | `memo-factcheck` | サブエージェントで独立に事実確認 → 指摘を報告 → 確認後に修正・push |
 | 「前に〜のメモ書いたよね」「〜のメモのここを直して」 | `memo-reference` | Markdown 版（build で作る `dist/md/`）で探して読む／直すときは HTML の該当箇所だけ編集 → 変えた箇所をファクトチェック → push |
 | 「ロードマップを作って」「次のメモを書いて」「ロードマップを見直して」 | `memo-roadmap` | ロードマップ（オプション）の項目を相談して決める／優先度の順に 1 本ずつ書いて登録 → 項目を更新 → push |
-| 「memo.py を直して」「コマンドを追加して」「リファクタして」 | `memo-maintain` | テストを流す → 変更 → 出力の前後比較・テスト → memo-detail.md を更新 → push |
+| 「memo.py を直して」「コマンドを追加して」「リファクタして」 | `memo-maintain` | テストを流す → 変更 → 出力の前後比較・テスト → `mechanism/`（と人向けの memo-detail.md）を更新 → push |
 
 ## アプリ（claude.ai）の入口スキルから使うとき
 

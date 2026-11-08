@@ -116,7 +116,7 @@ python3 -B -m unittest discover -s tests   # テスト
 
 ## 仕組みと memo.py
 
-ファイルの構成（原本と生成物）、`scripts/memo.py` の各コマンド、自動生成ブロック、確認クイズのデータの流れ、AI 向けの Markdown 版（`llms.txt`）、サイトごとの設定（`memo.config.json`）、表示の確認とプレビュー、GitHub Actions は、図つきで [memo-detail.md](memo-detail.md) にまとめています。
+ファイルの構成（原本と生成物）、`scripts/memo.py` のコマンド、`build` が作るもの、サイトごとの設定（`memo.config.json`）、表示の確認とプレビュー、GitHub Actions は、図つきで [memo-detail.md](memo-detail.md) にまとめています。Claude が仕組みを直すときに読む細かい説明は [`.claude/skills/mechanism/`](.claude/skills/mechanism/INDEX.md) にあります。
 
 メモ（中身）と仕組みは分けてあり、仕組みは本物のメモがなくても動きます（テストは `tests/fixtures/` のサンプルで動く）。残すもの・消すものの一覧は [memo-detail.md の「このキットから始める」](memo-detail.md#このキットから始める) にあります。
 
