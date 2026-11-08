@@ -6,7 +6,7 @@ description: MEMO リポジトリの Python スクリプト（scripts/memo.py・
 # memo-maintain
 
 MEMO の仕組みそのもの（スクリプト・共通ファイル・ワークフロー）を変えるときの手順。
-仕組みの全体像は `memo-detail.md`（リポジトリ直下）が唯一の説明書なので、**まずそこを読み、最後にそこを更新する**。
+仕組みの説明は `.claude/skills/mechanism/`（索引は `INDEX.md`）にある。**始める前に索引から変更に関係するファイルだけを読み、最後にそこを更新する**。人向けの `memo-detail.md` は、人から見える使い方が変わったときだけ更新する。
 
 ## 守ること
 
@@ -97,15 +97,17 @@ GitHub Actions は Python 3.12 で動く。手元に `python3.12` があれば�
 
 | 変えたもの | 更新する場所 |
 | --- | --- |
-| コマンド・オプション | `memo.py` 冒頭の使い方、`memo-detail.md` のコマンド一覧と詳細、それを使うスキル |
-| 生成物・自動生成ブロック・データの流れ | `memo-detail.md` の該当する図と表 |
-| モジュールの分け方 | `memo-detail.md`、このスキルの「モジュールの役割」 |
-| ワークフロー | `memo-detail.md` の「GitHub Actions」 |
-| 設定の項目 | `memolib/config.py` の `DEFAULTS`、`memo-detail.md` の「サイトごとの設定」、テストの `tests/fixtures/memo.config.json` |
+| コマンド・オプション | `memo.py` 冒頭の使い方と argparse の help、それを使うスキル。コマンドを足したら `memo-detail.md` の「コマンド」の表 |
+| メモの構造・lint のルール | `mechanism/memos.md` |
+| 生成物・自動生成ブロック・Markdown 版・preview | `mechanism/build.md`（人から見える生成物が増減したら `memo-detail.md` の「build が作るもの」も） |
+| モジュールの分け方 | このスキルの「モジュールの役割」と依存の向き、`memo-detail.md` の「コードの構成」の図 |
+| ワークフロー・sync | `mechanism/ci-sync.md`、`memo-detail.md` の「GitHub Actions」の表 |
+| 設定の項目 | `memolib/config.py` の `DEFAULTS`、`mechanism/config.md`（ルールや注意があれば）、`memo-detail.md` の「サイトごとの設定」の表、テストの `tests/fixtures/memo.config.json` |
+| 変更箇所の対応 | `mechanism/where-to-change.md` |
 | 仕組みとして残すファイル | `memo-detail.md` の「このキットから始める」、`tests/helpers.py` の `MECHANISM_DOCS` |
 | スキルの追加 | `.claude/skills/ROUTING.md` の 2 つの表に 1 行ずつ |
 
-`memo-detail.md` の Mermaid の図を変えたら、描画できることを確かめる（構文エラーだと GitHub で図が出ない）。
+`mechanism/` には既定値・関数一覧・コマンドの書式を書き写さない（コードを見るように書く）。`memo-detail.md` の Mermaid の図を変えたら、描画できることを確かめる（構文エラーだと GitHub で図が出ない）。
 
 ### 5. コミット
 
@@ -115,7 +117,7 @@ GitHub Actions は Python 3.12 で動く。手元に `python3.12` があれば�
 ### 6. memo-kit とテンプレートから作ったリポジトリをそろえる
 
 - 仕組みは memo-kit で直すのが基本。テンプレートから作ったリポジトリで直したときは、同じ変更を memo-kit にも入れる（入れないと、次の `sync` で消える）。
-- memo-kit の変更は、各リポジトリで `python3 scripts/memo.py sync <memo-kit を clone したフォルダ>` で取り込み、テストを流してからコミットする。「見比べる」と出たスキルやページは、memo-kit の差分を見てサイトに合う形で手で入れる（memo-detail.md の「memo-kit の更新を取り込む」）。
+- memo-kit の変更は、各リポジトリで `python3 scripts/memo.py sync <memo-kit を clone したフォルダ>` で取り込み、テストを流してからコミットする。「見比べる」と出たスキルやページは、memo-kit の差分を見てサイトに合う形で手で入れる（`mechanism/ci-sync.md`）。`.claude/skills/mechanism/` も「見比べる」に出るので、差分があれば反映する。
 - 仕組みのファイルは足せばそのまま取り込まれる。サイトごとに持つファイル（サンプルのメモ・画像など）や、サイトごとに書き換えるファイルを memo-kit に足したときだけ、`memolib/sync.py` の `SITE_PATTERNS`・`REVIEW_PATTERNS` に足す。
 
 ## 過去につまずいたこと

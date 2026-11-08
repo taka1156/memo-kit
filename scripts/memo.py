@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MEMO リポジトリ用ツール（標準ライブラリのみ）。仕組みの解説はリポジトリ直下の memo-detail.md
+"""MEMO リポジトリ用ツール（標準ライブラリのみ）。仕組みの解説は memo-detail.md（人向け）と .claude/skills/mechanism/（Claude 向け）
 
 使い方（どのディレクトリから実行してもよい）:
   python3 scripts/memo.py new   NAME                  テンプレートから src/NAME.html を作る
