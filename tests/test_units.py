@@ -331,6 +331,13 @@ class QuizTest(unittest.TestCase):
         self.assertTrue(blocks.QUIZ_CSS.is_file())
         self.assertTrue(blocks.QUIZ_JS.is_file())
 
+    def test_parts_colors_are_not_like_the_accent(self):
+        """共通部品の解説用の色（--c-ok など）が、このサイトのアクセント色に見えないこと。"""
+        import re
+        css = blocks.PARTS_CSS.read_text(encoding="utf-8")
+        near = [h for h in re.findall(r"--c-[\w-]+:\s*(#[0-9a-fA-F]{6})", css) if design.accent_like(h)]
+        self.assertEqual(near, [], "memo-parts.css の色がアクセント色に近い。値を変える")
+
     def test_parts_css_only_on_memos(self):
         self.assertTrue(blocks.PARTS_CSS.is_file())
         self.assertIn(blocks.PARTS_CSS_TAG, blocks.head_block(page("<title>T</title>"), "sample.html"))
