@@ -30,8 +30,8 @@ HEX_RE = re.compile(r"#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b")
 TAG_RE = re.compile(r"<[^>]+>")
 CODE_RE = re.compile(r"<pre\b.*?</pre>|<code\b.*?</code>", re.S | re.I)
 
-# 共通部品のセレクタ（ページの CSS で書き直さない）
-PARTS_SELECTOR_RE = re.compile(r"\.summary\b|\.myth\b|ol\.steps\b")
+# 共通部品のセレクタ（ページの CSS で書き直さない）。番号付きの手順は基本形だけ（中に置く独自の要素の装飾はよい）
+PARTS_SELECTOR_RE = re.compile(r"\.summary\b|\.myth\b|ol\.steps(\s*>?\s*li(::?before)?|\s+b)?\s*$")
 # 操作の状態（ここに付くアクセント色は「操作できる」目印として許す）
 STATE_RE = re.compile(r":(hover|focus|focus-visible|focus-within|active|checked)\b"
                       r"|\[aria-(selected|pressed|current|expanded)\b|\.(on|active|is-active|selected|current)\b")
@@ -100,14 +100,14 @@ def css_problems(text: str) -> list[str]:
     probs: list[str] = []
     accent_bad, parts_rules, parts_vars, odd_vars, near = [], [], set(), set(), set()
     for sel, body in _rules(text):
-        if PARTS_SELECTOR_RE.search(sel):
+        if any(PARTS_SELECTOR_RE.search(s.strip()) for s in sel.split(",")):
             parts_rules.append(sel)
         for prop, value in DECL_RE.findall(body):
             prop = prop.strip().lower()
             if prop.startswith("--"):
                 if prop in PARTS_VARS:
                     parts_vars.add(prop)
-                elif prop not in TOKENS and re.search(r"brand|accent", prop):
+                elif re.search(r"brand", prop):  # 名前に accent を含む変数は、デザイントークンの解説などで題材になるので見ない
                     odd_vars.add(prop)
                 if prop == "--accent":
                     continue
@@ -122,7 +122,7 @@ def css_problems(text: str) -> list[str]:
     if parts_vars:
         probs.append("共通部品が決める色をページで定義している（消す。値は memo-parts.css）: " + ", ".join(sorted(parts_vars)))
     if odd_vars:
-        probs.append("飾り用の色の変数がある（解説の色分けは意味ごとの --c-* にし、凡例やラベルを付ける）: "
+        probs.append("飾り用の色の変数がある（ブランド色で箱を塗らない。解説の色分けは意味ごとの --c-* にし、凡例やラベルを付ける）: "
                      + ", ".join(sorted(odd_vars)))
     if accent_bad:
         probs.append("アクセント色を付けてよい場所（h1・h2 の左線・段落のリンク・ボタンやタブの操作状態）以外で "
@@ -215,7 +215,7 @@ def myth_problems(text: str) -> list[str]:
             probs.append(f"よくある誤解 {i} 個目: <summary>（誤解）のすぐ後に <p>（正しい説明）を置く")
             continue
         q, a = _plain(mm.group(1)), _plain(mm.group(2))
-        if re.match(r"[✗✕×❌「]", q):
+        if re.match(r"[✗✕×❌]", q) or re.fullmatch(r"「[^「」]*」", q):
             probs.append(f"よくある誤解 {i} 個目: 誤解の文に ✗ や「」を書かない（✗ は CSS で付く）")
         if re.match(r"[✓✔○→]", a):
             probs.append(f"よくある誤解 {i} 個目: 説明の頭に ✓ や → を書かない（✓ は CSS で付く）")

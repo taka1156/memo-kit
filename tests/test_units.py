@@ -426,6 +426,8 @@ class DesignTest(unittest.TestCase):
         joined = " / ".join(self.probs(body=marks))
         self.assertIn("✗ や「」", joined)
         self.assertIn("✓ や →", joined)
+        quoted = SUMMARY_OK + '<h2>よくある誤解</h2><details class="myth"><summary>「8 倍速」は X</summary><p>B</p></details>'
+        self.assertEqual(self.probs(body=quoted), [])  # 文の一部の引用はよい
         plain = SUMMARY_OK + "<h2>よくある誤解</h2><details><summary>A</summary><p>B</p></details>"
         self.assertTrue(self.probs(body=plain))
 
@@ -440,6 +442,7 @@ class DesignTest(unittest.TestCase):
         joined = " / ".join(self.probs("<style>.summary{border:0} .myth p{color:red} ol.steps > li::before{color:red}</style>"))
         for sel in (".summary", ".myth p", "ol.steps > li::before"):
             self.assertIn(sel, joined)
+        self.assertEqual(self.probs("<style>ol.steps .who{color:red}</style>"), [])  # 中の独自の要素はよい
         self.assertTrue(any("--c-ok" in p for p in self.probs("<style>:root{--c-ok:#00ff00}</style>")))
         self.assertTrue(any("--brand" in p for p in self.probs("<style>:root{--brand:#123456}</style>")))
         light, dark = config.accents()

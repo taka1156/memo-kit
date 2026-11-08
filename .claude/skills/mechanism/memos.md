@@ -54,7 +54,7 @@
 - よくある誤解: 見出し（`h2` に「誤解」）の下は `<details class="myth"><summary>誤解</summary><p>説明</p>…</details>` を並べる（後ろに「関連:」などの段落があってよい）。`class="myth"` は `<details>` にだけ。✗・✓・→・「」を本文に書かない（CSS で付く）。
 - 共通部品のセレクタ（`.summary`・`.myth`・`ol.steps` の基本形）と、共通部品が決める色（`--c-ok`・`--c-ng`・`--c-warn`・`--c-hl`）をページで書かない。
 - `var(--accent)` を使ってよいのは、`h1`・`h2` の線（border）・`a` の文字色・ボタンやタブやフォーム・操作の状態（`:hover`・`:focus`・`[aria-selected]`・`[aria-pressed]`・`[aria-current]`・`.on` など）・`accent-color` だけ。JS・SVG・style 属性では使わない（`<pre>`・`<code>` の中の例は本文なので対象外）。
-- 名前に `brand`・`accent` を含む変数（`--accent` 以外）を作らない。
+- 名前に `brand` を含む変数を作らない（ブランド色で箱を塗る飾りを防ぐ。`accent` を含む名前はデザイントークンの解説などで題材になるので見ない）。
 - サイトのアクセント色（`memo.config.json` の branding。ライト・ダーク）と RGB の距離が `NEAR_ACCENT` 未満の色を使わない。アクセント色を変えると、近い色を使っていたメモが新たに引っかかる。
 
 意味（凡例やラベルがあるか）は機械では判定できないので、作るときに memo-style のチェックリストで確かめる。
