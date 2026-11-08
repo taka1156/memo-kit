@@ -1,0 +1,129 @@
+/* メモの共通部品（memo-style の「共通部品」）。
+   build が各メモの memo:head ブロックで読み込み、preview は中身を埋め込む。
+   ページの <style> より後に読み込まれるので、同じ強さのセレクタならこちらが勝つ。
+   ページ側でこれらの部品のセレクタを書き直さない（lint が止める）。
+
+   アクセント色（--accent）を付けてよいのは、h1・h2 の左線・「ざっくり言うと」の見出し文字・
+   段落の中のリンク・ボタンやタブの操作状態（選択中・押下中・hover・focus）だけ。
+   箱・図・解説の文字・番号の丸には付けない。解説の色分けは下の --c-* を使う。 */
+
+/* ---------- 解説用の色（意味ごと。値はここだけで決める） ---------- */
+:root {
+  --c-ok: #1a7f37;    /* 正しい・成功・安全 */
+  --c-ng: #cf222e;    /* 誤り・失敗・危険 */
+  --c-warn: #9a6700;  /* 注意 */
+  --c-hl: #8250df;    /* 図やシミュレーションの「今ここ」「注目」 */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-hl: #bc8cff;
+  }
+}
+
+/* ---------- ざっくり言うと ---------- */
+/* <div class="card summary"><strong>ざっくり言うと</strong><ul><li>…</li> ×3</ul></div> */
+.card.summary {
+  border: 1px solid var(--line);
+}
+.summary > strong {
+  display: block;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.summary > ul { margin: 0; padding: 0; }
+.summary > ul > li { margin: 2px 0 2px 1.2em; }
+
+/* ---------- よくある誤解 ---------- */
+/* <details class="myth"><summary>誤解の文</summary><p>正しい説明</p></details>
+   ✗・✓・開閉マークは CSS で付ける（本文に書かない） */
+details.myth {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 8px 0;
+}
+details.myth > summary {
+  display: block;
+  position: relative;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0 1.6em 0 1.5em;
+}
+details.myth > summary::-webkit-details-marker { display: none; }
+details.myth > summary::before {
+  content: '✗';
+  position: absolute;
+  left: 0;
+  color: var(--c-ng);
+}
+details.myth > summary::after {
+  content: '▸';
+  position: absolute;
+  right: 0;
+  color: var(--fg-2);
+  transition: transform 0.15s;
+}
+details.myth[open] > summary::after { transform: rotate(90deg); }
+details.myth > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+details.myth > p,
+details.myth > ul,
+details.myth > pre { margin: 8px 0 0 1.5em; }
+details.myth > summary + p { position: relative; }
+details.myth > summary + p::before {
+  content: '✓';
+  position: absolute;
+  left: -1.5em;
+  color: var(--c-ok);
+  font-weight: 700;
+}
+
+/* ---------- 番号付きの手順 ---------- */
+/* <ol class="steps"><li><b>見出し</b>説明</li></ol>
+   番号の丸は標準でグレー。意味があるときだけ li に is-ok / is-ng / is-warn / is-hl を付ける */
+ol.steps { list-style: none; counter-reset: memo-step; margin: 8px 0; padding: 0; display: grid; gap: 8px; }
+ol.steps > li {
+  counter-increment: memo-step;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+ol.steps > li::before {
+  content: counter(memo-step);
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 700 0.72rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps > li.is-ok::before { background: var(--c-ok); color: var(--bg); }
+ol.steps > li.is-ng::before { background: var(--c-ng); color: var(--bg); }
+ol.steps > li.is-warn::before { background: var(--c-warn); color: var(--bg); }
+ol.steps > li.is-hl::before { background: var(--c-hl); color: var(--bg); }
+ol.steps b { display: block; }
+
+/* ---------- 表やリストの中のリンク ---------- */
+/* 色を付けるとノイズになるので、普通の文字色＋点線の下線。class の付いたリンク（カード・ナビ）は対象外 */
+li a:not([class]),
+td a:not([class]),
+th a:not([class]),
+dd a:not([class]) {
+  color: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+li a:not([class]):hover,
+td a:not([class]):hover,
+th a:not([class]):hover,
+dd a:not([class]):hover { color: var(--accent); text-decoration-style: solid; }

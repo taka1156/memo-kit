@@ -16,6 +16,7 @@
 
 - 見出しと図とクイズがある
 - [もう 1 本のメモ](https://repo.github.io/sample/md/sample-plain.md) へリンクしている
+- ざっくり言うとやよくある誤解の見た目は共通の CSS で決まる
 
 ## はじめに
 
