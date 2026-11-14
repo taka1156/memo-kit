@@ -10,6 +10,8 @@
 //   - 解説用の色（--c-*）: 背景との非テキストのコントラスト 3、色同士・色覚の違いを
 //     まねた見え方での見分けやすさ、アクセント色との近さ                              [注意]
 //   - スマホ幅での小さすぎる文字（10px 未満）・押しにくいボタン（24px 未満）         [注意]
+//   - 並んだ項目（リスト・表の行・カード）の一部だけに色が付いている                  [注意]
+//     （色の意図が本文や凡例に書いていないと、ただのノイズになる。意味は目で確かめる）
 // タブは 1 つずつ押し、<details> は開いてから同じことを確かめる。それ以外の操作（ステップ送りなど）は
 // 見ないので、スキルの手順どおり自分で操作して撮る。
 // 撮ったスクリーンショットは <出力フォルダ>/<sp|pc>-<light|dark>-NN.png（縦 1600px ごとに切る）。
@@ -138,7 +140,40 @@ function inspect(opts) {
   if (dim.length) note.push(`opacity で薄くした文字はコントラストを測っていない（無効・省略の表示なら問題ない。読ませたい文字なら薄くしない）: ${dim.slice(0, 3).join('、')}${dim.length > 3 ? ` ほか ${dim.length - 3} か所` : ''}`);
   if (unknown.length) note.push(`背景が画像・グラデーションの文字はコントラストを測れない（スクリーンショットで確かめる）: ${unknown.slice(0, 3).join('、')}${unknown.length > 3 ? ` ほか ${unknown.length - 3} か所` : ''}`);
 
-  // 5. 押しにくいボタン（スマホ幅）
+  // 5. 並んだ項目の一部だけに色が付いている（番号の丸の is-* や、左線・枠・背景の色）
+  // 色みがはっきりある色だけを「色付き」とみなす（罫線の暗い紺・グレーは除く）
+  const chroma = (c) => Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]);
+  const mark = (el) => {
+    const m = (typeof el.className === 'string' ? el.className : '').match(/\bis-(ok|ng|warn|hl)\b/);
+    if (m) return 'is-' + m[1];
+    const s = getComputedStyle(el);
+    for (const prop of ['borderLeftColor', 'borderTopColor', 'backgroundColor']) {
+      const c = rgba(s[prop]);
+      const w = prop === 'backgroundColor' ? 1 : parseFloat(s[prop.replace('Color', 'Width')]);
+      if (c[3] > 0.15 && w > 0 && chroma(c) > 60) return `${prop.replace('Color', '')} ${hex(c)}`;
+    }
+    return '';
+  };
+  const groups = new Set();
+  for (const el of document.body.querySelectorAll('li, tr, .card')) {
+    const p = el.parentElement;
+    if (!p || groups.has(p) || el.closest('#memo-quiz-ui, nav, .tabs, [role="tablist"]')) continue;
+    groups.add(p);
+    // 同じ種類の項目どうしだけを比べる（同じタグで、最初のクラス名も同じ）
+    // （li・tr はタグだけ。is-* など状態のクラスは種類に数えない）
+    const kind = (c) => (/^(LI|TR)$/.test(c.tagName) ? c.tagName
+      : c.tagName + '.' + (typeof c.className === 'string' ? c.className.split(/\s+/).filter((k) => k && !/^is-/.test(k))[0] || '' : ''));
+    const sibs = [...p.children].filter((c) => kind(c) === kind(el) && shown(c));
+    if (sibs.length < 3) continue;
+    const marks = sibs.map(mark);
+    const kinds = new Set(marks.filter(Boolean));
+    const plain = marks.filter((m) => !m).length;
+    if (kinds.size && plain) {
+      note.push(`並んだ ${sibs.length} 項目のうち ${sibs.length - plain} 項目だけに色（${[...kinds].join('・')}）: ${name(p)}。色の意味（なぜその項目だけか）が本文か凡例に書いてあるか確かめる。書けないなら色を外す`);
+    }
+  }
+
+  // 6. 押しにくいボタン（スマホ幅）
   if (opts.sp) {
     const small = [];
     for (const el of document.querySelectorAll('button, [role="tab"], [role="button"], summary, input, select, a.btn')) {
