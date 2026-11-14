@@ -9,6 +9,7 @@
 | クイズの見た目・動き | `src/assets/memo-quiz.css`・`.js` | 全メモに反映（build 不要） |
 | 共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク・解説用の色）の見た目 | `src/assets/memo-parts.css`、見本は `template.html` | 全メモに反映。push で `visual.yml` が前後のスクリーンショットを比べる |
 | 見た目の決まりのチェック | `memolib/design.py`（ルールを変えたら memo-style・`mechanism/memos.md` も） | テスト、`lint --all` |
+| 描画しての表示と色のチェック（SP・PC 幅、コントラスト、色覚の違い） | `tests/visual/check.mjs`（観点を変えたら memo-check も） | テンプレートで `[要対応]` が出ないこと |
 | クイズ表示の枠・入る場所 | `memolib/blocks.py` の `QUIZ_BLOCK`・`apply_quiz` | build で全メモが変わる |
 | アイコン・OGP のタグ | `memolib/blocks.py` の `head_block` | build で全ページが変わる |
 | 一覧に載せる項目 | `memolib/meta.py` の `read_meta`、`memolib/site.py` の `memos_json` | build |
