@@ -57,7 +57,7 @@ jobs:
         run: python3 -m unittest discover -s tests -v
 
       # 仕組みのページの JS（src/assets/memo-site.js・memo-quiz.js）のテスト。memo.py 自体は Node に依存しない
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
