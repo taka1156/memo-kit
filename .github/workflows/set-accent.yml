@@ -48,7 +48,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.15"
 
       # 画像を作り直すときだけ: render.py に必要なもの（版は branding/requirements.txt で固定）とフォントを入れる
       - name: Install image tools
