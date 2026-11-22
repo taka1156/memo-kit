@@ -75,7 +75,7 @@ jobs:
           cp memo.config.json "${RUNNER_TEMP}/out/"
           cp -r src/assets "${RUNNER_TEMP}/out/src/"
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: accent
           path: ${{ runner.temp }}/out
@@ -92,7 +92,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: accent
           path: ${{ runner.temp }}/out
