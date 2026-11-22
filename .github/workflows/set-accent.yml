@@ -39,7 +39,7 @@ jobs:
   render:
     # デフォルトブランチから実行したときだけ（別のブランチを選んで実行しても書き換えない）
     if: github.ref_name == github.event.repository.default_branch
-    runs-on: ubuntu-24.04 # apt のフォント名と playwright の対応をそろえるため版を固定する
+    runs-on: ubuntu-26.04 # apt のフォント名と playwright の対応をそろえるため版を固定する
     steps:
       - uses: actions/checkout@v6
         with:
