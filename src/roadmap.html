@@ -225,7 +225,7 @@ footer a { color: var(--accent); }
 // 共通の処理は assets/memo-site.js（MemoSite）
 const { esc, loadJSON } = MemoSite;
 // ── ロードマップの定義 ─────────────────────────────
-// 書いたメモは file だけでよい（タイトルは memos.json から取る）。
+// 書いたメモは file だけにする（タイトルは memos.json から取る。理由・優先度・alt は書き終えたら消す）。
 // 未着手のテーマは title・prio・note を書く。alt は別名でも済みにしたいときのファイル名。
 const ROADMAP = [
   // 例: サンプルのメモ 2 本と、これから書く予定のテーマ。自分のテーマに書き換える

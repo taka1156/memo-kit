@@ -31,6 +31,6 @@
 ## ロードマップ（`src/roadmap.html`）
 
 - `roadmap: true` のときだけ公開。各ページ上部のナビとトップのフッターのリンクは `data-memo-if="roadmap"`。
-- 項目はスクリプト冒頭の `ROADMAP`。書いたメモは `file` だけ、これから書くテーマは `title`・`prio`（`high` / `mid` / `low`）・`note`。別名でも済みにするなら `alt`。
+- 項目はスクリプト冒頭の `ROADMAP`。書いたメモは `file` だけ（書き終えたら `title`・`prio`・`note`・`alt` を消す）、これから書くテーマは `title`・`prio`（`high` / `mid` / `low`）・`note`。別名でも済みにするなら `alt`。
 - チェックはページが `memos.json` を読んで付ける（`file` か `alt` が一致）。どの項目にも当てはまらないメモは「ロードマップ外のメモ」に並ぶ。
 - 項目を決める・その順に書くのは memo-roadmap スキル。
