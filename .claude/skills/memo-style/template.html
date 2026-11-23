@@ -60,7 +60,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -145,6 +145,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <!-- よくある誤解（必要なときだけ。使わないなら見出しごと消す）。✗・✓・開閉マークは CSS で付くので本文に書かない -->
   <h2 id="myths">よくある誤解</h2>
   <details class="myth"><summary>誤解の文（「」で囲まない）</summary><p>正しい説明</p></details>
+
+  <!-- 関連メモ（必要なときだけ。使わないなら見出しごと消す）。説明は「このメモとどうつながるか」 -->
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="other-memo.html">メモの名前</a> — このメモとどうつながるか</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

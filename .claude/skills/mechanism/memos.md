@@ -51,8 +51,12 @@
 共通部品の見た目は `src/assets/memo-parts.css` に 1 つだけ置く（build が memo:head から読み込み、preview は埋め込む）。書き方は memo-style の「共通部品」、見本はテンプレート。lint は次を `[要対応]` で止める。
 
 - ざっくり言うと: `<div class="card summary">` が 1 つ、`<strong>ざっくり言うと</strong>` のすぐ後に `<ul>`、`<li>` がちょうど 3 個。
-- よくある誤解: 見出し（`h2` に「誤解」）の下は `<details class="myth"><summary>誤解</summary><p>説明</p>…</details>` を並べる（後ろに「関連:」などの段落があってよい）。`class="myth"` は `<details>` にだけ。✗・✓・→・「」を本文に書かない（CSS で付く）。
-- 共通部品のセレクタ（`.summary`・`.myth`・`ol.steps` の基本形）と、共通部品が決める色（`--c-ok`・`--c-ng`・`--c-warn`・`--c-hl`）をページで書かない。
+- よくある誤解: 見出し（`h2` に「誤解」）の下は `<details class="myth"><summary>誤解</summary><p>説明</p>…</details>` を並べる。`class="myth"` は `<details>` にだけ。✗・✓・→・「」を本文に書かない（CSS で付く）。
+- 関連メモ: 見出しは `<h2 id="related">関連メモ</h2>`、すぐ下に `<ul class="related">`。各 `<li>` はリンクから始め、後ろに「 — つながり」を書く。リンクに → ← を付けない。`class="related"` は `<ul>` にだけ。「関連:」で始まる段落は使わない（本文の文の中のリンクは対象外）。
+- 表: `<table>` は `<div class="table-wrap">`（`card table-wrap` も可）のすぐ内側に置く。JS の文字列の中の表は見ない。
+- 補足の文は `class="note"` だけ（`muted` は使わない）。
+- 参考: 見出しは `<h2 id="sources">参考</h2>`、すぐ下に `<ul class="sources">`。`class="sources"` は `<ul>` にだけ。「参考:」「出典:」で始まる段落は使わない。
+- 共通部品のセレクタ（`.summary`・`.myth`・`.related`、そのものだけ禁止の `.table-wrap`・`.note`・`.legend`・`.sources`、`ol.steps` の基本形）と、共通部品が決める色（`--c-ok`・`--c-ng`・`--c-warn`・`--c-hl`）をページで書かない。
 - `var(--accent)` を使ってよいのは、`h1`・`h2` の線（border）・`a` の文字色・ボタンやタブやフォーム・操作の状態（`:hover`・`:focus`・`[aria-selected]`・`[aria-pressed]`・`[aria-current]`・`.on` など）・`accent-color` だけ。JS・SVG・style 属性では使わない（`<pre>`・`<code>` の中の例は本文なので対象外）。
 - 名前に `brand` を含む変数を作らない（ブランド色で箱を塗る飾りを防ぐ。`accent` を含む名前はデザイントークンの解説などで題材になるので見ない）。
 - サイトのアクセント色（`memo.config.json` の branding。ライト・ダーク）と RGB の距離が `NEAR_ACCENT` 未満の色を使わない。アクセント色を変えると、近い色を使っていたメモが新たに引っかかる。

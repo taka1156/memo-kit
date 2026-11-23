@@ -439,6 +439,56 @@ class DesignTest(unittest.TestCase):
         plain = SUMMARY_OK + "<h2>よくある誤解</h2><details><summary>A</summary><p>B</p></details>"
         self.assertTrue(self.probs(body=plain))
 
+    def test_related_shape(self):
+        good = SUMMARY_OK + ('<h2 id="related">関連メモ</h2><ul class="related">'
+                             '<li><a href="a.html">A</a> — つながり</li>'
+                             '<li><a href="b.html">B</a>・<a href="c.html">C</a> — 2 本まとめて</li></ul>'
+                             '<p>本文の中の <a href="d.html">D</a> へのリンクはよい。</p>')
+        self.assertEqual(self.probs(body=good), [])
+        cases = {
+            '<h2>関連</h2><p class="related"><a href="a.html">A →</a></p>': "<ul> にだけ",
+            '<p class="note">関連: <a href="a.html">A</a></p>': "「関連:」の段落",
+            '<h2 id="related">関連メモ</h2><ul class="related"><li><a href="a.html">A →</a></li></ul>': "→ や ←",
+            '<h2 id="related">関連メモ</h2><ul class="related"><li><a href="a.html">A</a></li></ul>': "どうつながるか",
+            '<h2>関連するメモ</h2><ul class="related"><li><a href="a.html">A</a> — x</li></ul>': "見出しは",
+            '<h2 id="related">関連メモ</h2><ul class="dots"><li><a href="a.html">A</a> — x</li></ul>': "すぐ下は",
+        }
+        for body, want in cases.items():
+            joined = " / ".join(self.probs(body=SUMMARY_OK + body))
+            self.assertIn(want, joined, body)
+        self.assertTrue(any(".related" in p for p in self.probs("<style>.related a{margin:0}</style>")))
+
+    def test_table_is_wrapped(self):
+        ok = SUMMARY_OK + '<div class="table-wrap"><table><tr><td>1</td></tr></table></div>'
+        self.assertEqual(self.probs(body=ok), [])
+        card = SUMMARY_OK + '<div class="card table-wrap"><table><tr><td>1</td></tr></table></div>'
+        self.assertEqual(self.probs(body=card), [])
+        for bad in ('<table><tr><td>1</td></tr></table>', '<div class="tbl-wrap"><table></table></div>'):
+            self.assertTrue(any("table-wrap" in p for p in self.probs(body=SUMMARY_OK + bad)), bad)
+        js = SUMMARY_OK + "<script>el.innerHTML = '<table></table>'</script>"
+        self.assertEqual(self.probs(body=js), [])  # JS の中は見ない
+        self.assertTrue(any(".table-wrap" in p for p in self.probs("<style>.table-wrap{overflow:hidden}</style>")))
+
+    def test_note_is_one_class(self):
+        self.assertEqual(self.probs(body=SUMMARY_OK + '<p class="note">補足</p>'), [])
+        self.assertTrue(any("muted" in p for p in self.probs(body=SUMMARY_OK + '<p class="muted">補足</p>')))
+        self.assertTrue(any(".note" in p for p in self.probs("<style>.note{font-size:.7rem}</style>")))
+        self.assertEqual(self.probs("<style>.panel .note{margin:0}</style>"), [])  # 置き場所ごとの調整はよい
+        self.assertTrue(any(".legend" in p for p in self.probs("<style>.legend{gap:0}</style>")))
+        self.assertEqual(self.probs("<style>.legend i{border-radius:50%}</style>"), [])  # 見本の形は変えてよい
+
+    def test_sources_shape(self):
+        ok = SUMMARY_OK + '<h2 id="sources">参考</h2><ul class="sources"><li><a href="https://e.com">E</a></li></ul>'
+        self.assertEqual(self.probs(body=ok), [])
+        cases = {
+            '<h2>出典</h2><ul class="sources"><li>x</li></ul>': "見出しは",
+            '<h2 id="sources">参考</h2><ul><li>x</li></ul>': "すぐ下は",
+            '<p class="sources">出典: x</p>': "<ul> にだけ",
+            '<p>参考: <a href="https://e.com">E</a></p>': "段落ではなく",
+        }
+        for body, want in cases.items():
+            self.assertIn(want, " / ".join(self.probs(body=SUMMARY_OK + body)), body)
+
     def test_accent_only_on_allowed_places(self):
         for css in (".card{border-left:3px solid var(--accent)}", "ol.flow li::before{background:var(--accent)}",
                     ".label{color:var(--accent)}", "h3{color:var(--accent)}", "h2{color:var(--accent)}"):
