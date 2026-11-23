@@ -8,8 +8,9 @@
 2. 各ページに自動生成ブロックとサイト設定を差し込む（下の表）。
 3. `memos.json`（日付の新しい順。各メモの問題数 `quizzes` を含む）と `quizzes.json`（1 問 1 行）を作る。崩れた問題は飛ばして警告。
 4. `md/*.md` と `llms.txt` を作る。
-5. `entry-skill/SKILL.md` を作る。
-6. `dist/` をそろえる。
+5. `feed.xml`（Atom フィード）を作る。
+6. `entry-skill/SKILL.md` を作る。
+7. `dist/` をそろえる。
 
 - `--check`: 何も書かず、`dist/` が古ければ名前を出して終了コード 1。
 - `--strict`: クイズの崩れや許可リスト外のファイルの警告が 1 件でもあれば、書き出さずに終了コード 1（デプロイが使う）。`repository` がテンプレートのまま（`repo/sample` など）という警告では止まらない。
@@ -22,10 +23,10 @@
 
 | ブロック | 入る場所 | 中身 | 関数 |
 | --- | --- | --- | --- |
-| `<!-- memo:head -->` | `</head>` の直前 | ファビコン・iOS アイコン・OGP・共通部品の CSS（メモだけ。`assets/memo-parts.css`。ページの `<style>` より後なので同じ強さなら勝つ）・アクセント色（`<style id="memo-accent">`、`html:root` でページの `--accent` を上書き） | `head_block`・`apply_head` |
+| `<!-- memo:head -->` | `</head>` の直前 | ファビコン・iOS アイコン・OGP・フィードの自動検出（`feed.FEED_LINK_TAG`。フィードを作るときだけ）・共通部品の CSS（メモだけ。`assets/memo-parts.css`。ページの `<style>` より後なので同じ強さなら勝つ）・アクセント色（`<style id="memo-accent">`、`html:root` でページの `--accent` を上書き） | `head_block`・`apply_head` |
 | `<!-- memo:quiz -->` | フッター（`memo-backlink`）の直前、無ければ最後の `</body>` の直前 | クイズの表示枠と共通 CSS / JS への参照。問題データが無ければ入れない | `apply_quiz` |
 | `data-memo-site*` 属性 | 仕組みの 4 ページ | 設定値（`site_fields()`）で中身や属性を置き換える。目印は残す | `apply_site` |
-| `data-memo-if` 属性 | 仕組みのページ | 設定（`config.OPTIONAL_PAGES` の値）がオフなら要素ごと消す | `apply_site` |
+| `data-memo-if` 属性 | 仕組みのページ | 設定（`config.OPTIONAL_PAGES` の値）がオフなら要素ごと消す。`feed` はフィードを作らないとき消す（`blocks._if_conditions`） | `apply_site` |
 
 ## AI 向けの Markdown 版（`memolib/markdown.py`）
 
@@ -36,6 +37,13 @@
 - 本文の大半を JS のデータから描画するページは、そのスクリプトをコードブロックとして末尾に付ける。
 - 別のメモへのリンクは、そのメモの Markdown 版へのリンクに置き換える。
 - よくある誤解（`details.myth`）は、✗・✓ が CSS で付くので「✗ 誤解: …」「✓ 正しくは: …」と言葉を付けて書き出す。
+
+## Atom フィード（`memolib/feed.py`）
+
+- `feed.xml`: 一覧（`site_data` の memos と同じ新しい順）から `FEED_LIMIT` 件。各エントリはタイトル・URL（id も同じ）・説明（summary）・タグ（category）。
+- 日付は日単位なので、`utc_offset_hours` のその日 0 時を published・updated にする。日付のないメモは載せない。フィードの updated は最も新しいメモの日付（実行時刻は使わない。冪等にするため）。
+- Atom の id には絶対 URL が要るので、公開 URL（`config.SITE_URL`）が空なら作らず、head のリンクと `data-memo-if="feed"` の要素も出さない（`feed.feed_enabled`）。
+- トップページのフッターのリンクは `data-memo-if="feed"`。
 
 ## preview（`memolib/site.py` の `preview_text`）
 

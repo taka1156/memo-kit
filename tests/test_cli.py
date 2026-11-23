@@ -15,12 +15,13 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from helpers import ENTRY_REL, GIT_ENV, REPO, Workspace, check_real_memos, diff_names
 
 GENERATED_BLOCKS = (r"<!-- memo:head.*?<!-- /memo:head -->\n?", r"<!-- memo:quiz.*?<!-- /memo:quiz -->\n?")
-GENERATED_IN_DOCS = ("memos.json", "quizzes.json", "llms.txt", "md")
+GENERATED_IN_DOCS = ("memos.json", "quizzes.json", "llms.txt", "feed.xml", "md")
 
 
 def remove_dist(ws: Workspace) -> None:
@@ -81,7 +82,7 @@ class BuildTest(unittest.TestCase):
             for rel in ("index.html", "quiz.html", "settings.html", "sample.html", "sample-plain.html",
                         "CNAME", "assets/memo-quiz.css", "assets/memo-quiz.js", "assets/memo-parts.css",
                         "memos.json", "quizzes.json",
-                        "llms.txt", "md/sample.md", str(ENTRY_REL)):
+                        "llms.txt", "md/sample.md", "feed.xml", str(ENTRY_REL)):
                 self.assertTrue((ws.dist / rel).is_file(), rel)
             self.assertEqual((ws.dist / "assets" / "memo-quiz.js").read_bytes(),
                              (ws.src / "assets" / "memo-quiz.js").read_bytes())
@@ -483,6 +484,34 @@ class PathUrlTest(unittest.TestCase):
             cname = (ws.src / "CNAME").read_text(encoding="utf-8").strip()
             self.assertEqual(ws.run("url", "sample").stdout.strip(), f"https://{cname}/sample.html")
             self.assertEqual(ws.run("url").stdout.strip(), f"https://{cname}/")
+
+
+class FeedBuildTest(unittest.TestCase):
+    """build が Atom フィード（feed.xml）を作り、各ページから見つけられること。"""
+
+    def test_feed_lists_memos_and_pages_link_to_it(self):
+        with Workspace() as ws:
+            root = ET.fromstring(ws.read("feed.xml"))
+            ns = "{http://www.w3.org/2005/Atom}"
+            ids = [e.find(ns + "id").text for e in root.findall(ns + "entry")]
+            self.assertIn("https://memo.example.com/sample.html", ids)
+            self.assertIn("https://memo.example.com/sample-plain.html", ids)
+            self.assertEqual(root.find(ns + "title").text, "TEST MEMO")
+            link = '<link rel="alternate" type="application/atom+xml" title="TEST MEMO" href="feed.xml">'
+            for name in ("index.html", "sample.html", "quiz.html"):
+                self.assertIn(link, ws.read(name), name)
+            self.assertIn('href="feed.xml"', ws.read("index.html").split("<footer", 1)[1])
+
+    def test_no_feed_without_site_url(self):
+        """公開 URL が決まらない（repository が空で CNAME もない）ときは作らず、リンクも出さない。"""
+        with Workspace() as ws:
+            cfg = json.loads((ws.root / "memo.config.json").read_text(encoding="utf-8"))
+            (ws.root / "memo.config.json").write_text(json.dumps({**cfg, "repository": ""}), encoding="utf-8")
+            (ws.src / "CNAME").unlink()
+            ws.run("build")
+            self.assertFalse((ws.dist / "feed.xml").exists())
+            self.assertNotIn("feed.xml", ws.read("index.html"))
+            self.assertNotIn("feed.xml", ws.read("sample.html"))
 
 
 class SiteConfigTest(unittest.TestCase):

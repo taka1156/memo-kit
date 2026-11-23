@@ -12,6 +12,7 @@
 | 描画しての表示と色のチェック（SP・PC 幅、コントラスト、色覚の違い） | `tests/visual/check.mjs`（観点を変えたら memo-check も） | テンプレートで `[要対応]` が出ないこと |
 | クイズ表示の枠・入る場所 | `memolib/blocks.py` の `QUIZ_BLOCK`・`apply_quiz` | build で全メモが変わる |
 | アイコン・OGP のタグ | `memolib/blocks.py` の `head_block` | build で全ページが変わる |
+| Atom フィードの中身・件数 | `memolib/feed.py` の `atom_feed`・`FEED_LIMIT` | build で `feed.xml` が変わる |
 | 一覧に載せる項目 | `memolib/meta.py` の `read_meta`、`memolib/site.py` の `memos_json` | build |
 | Markdown 版の変換 | `memolib/markdown.py` の `_ToMarkdown`・`html_to_markdown` | build で全 Markdown 版が変わる |
 | 仕組みの 4 ページの共通処理 | `src/assets/memo-site.js`（色の計算は `config.light_accent` と揃える） | `npm test` |

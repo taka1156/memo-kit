@@ -6,6 +6,7 @@ src/ のファイルのコピーに、次の生成物を加えたものになる
 - 各ページ（メモ・トップ・クイズ・設定）: 自動生成ブロック（memo:head・memo:quiz）とサイト設定を差し込んだもの
 - memos.json・quizzes.json（一覧と全問題。quizzes.json は memo.config.json の quiz が true のときだけ）
 - md/NAME.md・llms.txt（AI 向けの Markdown 版）
+- feed.xml（新着メモの Atom フィード。公開 URL が決まるときだけ）
 - entry-skill/SKILL.md（アプリ側に置く入口スキル）
 
 dist/ は .gitignore 済み。Actions がこの中身をそのまま dist ブランチ（memo.config.json の deploy_branch）に
@@ -19,12 +20,13 @@ from pathlib import Path
 from .blocks import QUIZ_CSS, QUIZ_JS, apply_generated
 from .config import CONFIG, DIST, SRC, ENTRY_SKILL, SPECIAL_NAMES, page_enabled, read_text
 from .entry import entry_skill
+from .feed import FEED_XML, atom_feed, feed_enabled
 from .markdown import LLMS_TXT, MD_DIR, markdown_outputs
 from .meta import memo_files
 from .site import MEMOS_JSON, QUIZZES_JSON, memos_json, quizzes_json, site_data
 
 # src/ にあってもコピーしないもの（どれも build が作る。昔のリポジトリの生成物が残っていても公開しない）
-_GENERATED_NAMES = {MEMOS_JSON.name, QUIZZES_JSON.name, LLMS_TXT.name}
+_GENERATED_NAMES = {MEMOS_JSON.name, QUIZZES_JSON.name, LLMS_TXT.name, FEED_XML.name}
 _GENERATED_DIRS = {MD_DIR.name}
 
 
@@ -87,6 +89,8 @@ def dist_outputs(problems: list[str] | None = None) -> tuple[dict[Path, bytes], 
         want[QUIZZES_JSON] = quizzes_json(quizzes).encode("utf-8")
     for path, text in markdown_outputs(memos).items():
         want[path] = text.encode("utf-8")
+    if feed_enabled():  # Atom の id に絶対 URL が要るので、公開 URL が決まらなければ作らない
+        want[FEED_XML] = atom_feed(memos).encode("utf-8")
     want[ENTRY_SKILL] = entry_skill().encode("utf-8")
     return want, len(memos), len(quizzes)
 

@@ -16,7 +16,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 - **置き場所を知っているのは `memolib/config.py` だけ。** 他のモジュールやスキルでパスを組み立てない。
 - **サイトごとの値は `memo.config.json` だけ。** サイト名・リポジトリ・ブランチ・タイムゾーン・ドメイン・アクセント色を、コード・スキル・ワークフロー・`index.html`／`quiz.html`／`settings.html` に直接書かない（ページには `data-memo-site` の目印を付けて `build` に入れさせる。スキルは `memo.py config KEY` で読む）。仕組みだけを別のリポジトリに持っていけるようにするため。
 - **テストは本物のメモに頼らない。** 新しいテストは `tests/fixtures/` のサンプル（`Workspace()`）で書く。本物のメモを確かめるものだけ `RepositoryTest` に置く（メモがないと飛ばされる）。
-- **原本は 1 か所、それ以外は生成する。** `src/` は原本だけ。build は `src/` を読むだけで書き換えず、生成物（自動生成ブロックを入れたページ・`memos.json`・`quizzes.json`・`md/`・`llms.txt`・`entry-skill/SKILL.md`）はすべて `dist/`（`.gitignore` 済み）に書き出す。生成物を手で直さず、生成する側を直して `build` する。build 以外のコマンド（lint・meta・new・add）も `src/` に自動生成ブロックを入れない（lint --fix は見つけたら取り除く）。
+- **原本は 1 か所、それ以外は生成する。** `src/` は原本だけ。build は `src/` を読むだけで書き換えず、生成物（自動生成ブロックを入れたページ・`memos.json`・`quizzes.json`・`md/`・`llms.txt`・`feed.xml`・`entry-skill/SKILL.md`）はすべて `dist/`（`.gitignore` 済み）に書き出す。生成物を手で直さず、生成する側を直して `build` する。build 以外のコマンド（lint・meta・new・add）も `src/` に自動生成ブロックを入れない（lint --fix は見つけたら取り除く）。
 - **何度実行しても同じ結果になる。** lint・build・meta を 2 回続けて実行しても 2 回目は何も変わらないこと。`dist/` を消して build し直しても同じ中身になること（テストで確かめている）。
 - **自動生成ブロックの目印（`<!-- memo:head` など）と `data-memo-site` の書き方は変えない。** 既存のページがその目印で見つけられている。
 
@@ -38,6 +38,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 | `src/assets/memo-parts.css` | メモの共通部品の見た目（build が memo:head から読み込む） |
 | `tests/visual/` | テンプレートのスクリーンショットを撮る・比べる（`shoot.mjs`・`compare.mjs`。`visual.yml` が使う）と、1 枚のページを SP・PC × ライト・ダークで描画して崩れと色を確かめる（`check.mjs`。memo-check スキルが使う）。どれも Node の Playwright |
 | `memolib/markdown.py` | AI 向けの Markdown 版 |
+| `memolib/feed.py` | 新着メモの Atom フィード（`dist/feed.xml`）と、head に入れる自動検出のタグ |
 | `memolib/site.py` | memos.json・quizzes.json、会話内プレビュー用の 1 枚の HTML |
 | `memolib/sync.py` | memo-kit から仕組みのファイルを取り込む（`memo.py sync`）。取り込まない・見比べるだけのファイルの一覧（それ以外はすべて取り込む） |
 | `memolib/dist.py` | `dist/` に置く全ファイルを組み立てて書き出す（`src/` のコピー＋生成物。消えたファイルは `dist/` からも消す） |
@@ -46,7 +47,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 | `tests/snapshot.py` | 全コマンドの出力をフォルダに保存する（前後比較用。本物のメモがなければサンプルで） |
 | `tests/fixtures/` | テスト用のサンプルのメモ 2 本と設定 |
 
-モジュール同士の依存は `config ← meta ← blocks ← lint / markdown / site ← dist ← memo.py`（と `config ← entry ← dist`、`config ← design ← lint`）の一方向。逆向きの import を作らない。
+モジュール同士の依存は `config ← meta ← blocks ← lint / markdown / site ← dist ← memo.py`（と `config ← entry ← dist`、`config ← design ← lint`、`config ← feed ← blocks / dist`）の一方向。逆向きの import を作らない。
 
 ## 手順
 

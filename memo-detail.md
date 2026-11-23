@@ -51,6 +51,7 @@ flowchart LR
     PAGES["公開用のページ"]
     JSON["memos.json・quizzes.json"]
     MD["md/NAME.md・llms.txt"]
+    FEED["feed.xml（Atom）"]
     ENT["entry-skill/SKILL.md"]
   end
 
@@ -141,8 +142,11 @@ GitHub の画面から HTML を直接アップロードしても、Actions の `
 | `memos.json` | 全メモのタイトル・説明・タグ・日付・問題数（トップページが読む） |
 | `quizzes.json` | 全メモの問題（ランダムクイズとクイズページが読む） |
 | `md/NAME.md`・`llms.txt` | AI 向けの Markdown 版と目次 |
+| `feed.xml` | 新着メモの Atom フィード（新しい順に 50 件。公開 URL が決まるときだけ） |
 | `entry-skill/SKILL.md` | claude.ai のアプリに登録する入口スキル |
 | `assets/`・`CNAME`・`.nojekyll` | `src/` からのコピー |
+
+**Atom フィード**: フィードリーダーに公開 URL（またはトップページのフッターの「フィード（Atom）」のリンク）を登録すると、新しいメモを追えます。各ページの `<head>` にも自動検出用の `<link rel="alternate">` が入ります。メモの日付は日単位なので、`utc_offset_hours` のタイムゾーンのその日 0 時を公開日時にします。
 
 **AI 向けの Markdown 版**: HTML は CSS や SVG で重いので、本文だけを Markdown にした版を作ります。公開 URL に `llms.txt` を付けたもの（例: `https://alice.github.io/notes/llms.txt`）を渡せば、リポジトリを繋いでいない会話でも Claude が過去のメモを読めます。
 
@@ -223,6 +227,7 @@ flowchart LR
   cli --> lint["lint.py"] & sync["sync.py"]
   dist --> md["markdown.py"] & site["site.py"] & entry["entry.py"]
   md & site & lint --> blocks["blocks.py"]
+  dist & blocks --> feed["feed.py<br/>Atom フィード"] --> config
   lint --> design["design.py<br/>見た目の決まり"] --> config
   blocks --> meta["meta.py"] --> config["config.py"]
 ```

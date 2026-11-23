@@ -7,10 +7,11 @@ from __future__ import annotations
 import datetime as dt
 import json
 import unittest
+import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 
 import helpers  # noqa: F401  scripts/ を import できるようにする
-from memolib import blocks, config, design, entry, lint, markdown, meta, site
+from memolib import blocks, config, design, entry, feed, lint, markdown, meta, site
 
 
 def page(head: str = "", body: str = "") -> str:
@@ -506,6 +507,44 @@ class MarkdownTest(unittest.TestCase):
     def test_llms_txt_lists_markdown_links(self):
         txt = markdown.llms_txt([{"file": "p.html", "title": "T", "desc": "D", "tags": ["a", "b"], "date": "2026-01-01"}])
         self.assertIn(f"- [T]({config.SITE_URL}md/p.md): D（a, b / 2026-01-01）", txt)
+
+
+ATOM = "{http://www.w3.org/2005/Atom}"
+
+
+class FeedTest(unittest.TestCase):
+    MEMOS = [
+        {"file": "b.html", "title": "B & <C>", "desc": "説明 \"引用\"", "tags": ["x", "y&z"], "date": "2026-02-03"},
+        {"file": "nodate.html", "title": "日付なし", "desc": "", "tags": [], "date": ""},
+        {"file": "a.html", "title": "A", "desc": "", "tags": [], "date": "2026-01-01"},
+    ]
+
+    def test_atom_feed_is_valid_xml_with_entries_in_order(self):
+        root = ET.fromstring(feed.atom_feed(self.MEMOS))
+        self.assertEqual(root.tag, ATOM + "feed")
+        self.assertEqual(root.find(ATOM + "id").text, config.SITE_URL)
+        entries = root.findall(ATOM + "entry")
+        self.assertEqual([e.find(ATOM + "title").text for e in entries], ["B & <C>", "A"])  # 日付なしは載せない
+        first = entries[0]
+        self.assertEqual(first.find(ATOM + "id").text, config.SITE_URL + "b.html")
+        self.assertEqual(first.find(ATOM + "summary").text, '説明 "引用"')
+        self.assertEqual([c.get("term") for c in first.findall(ATOM + "category")], ["x", "y&z"])
+        self.assertIsNone(entries[1].find(ATOM + "summary"))
+
+    def test_atom_feed_dates_use_configured_timezone(self):
+        root = ET.fromstring(feed.atom_feed(self.MEMOS))
+        tz = dt.timezone(dt.timedelta(hours=config.CONFIG["utc_offset_hours"]))
+        want = dt.datetime(2026, 2, 3, tzinfo=tz).isoformat()
+        self.assertEqual(root.find(ATOM + "updated").text, want)  # 最も新しいメモの日付
+        self.assertEqual(root.find(ATOM + "entry").find(ATOM + "published").text, want)
+
+    def test_atom_feed_without_memos_and_limit(self):
+        root = ET.fromstring(feed.atom_feed([]))
+        self.assertEqual(root.findall(ATOM + "entry"), [])
+        self.assertTrue(root.find(ATOM + "updated").text.startswith("1970-01-01"))
+        many = [{"file": f"m{i}.html", "title": str(i), "desc": "", "tags": [], "date": "2026-01-01"}
+                for i in range(feed.FEED_LIMIT + 5)]
+        self.assertEqual(len(ET.fromstring(feed.atom_feed(many)).findall(ATOM + "entry")), feed.FEED_LIMIT)
 
 
 class _TagCounter(HTMLParser):

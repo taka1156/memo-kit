@@ -8,6 +8,7 @@ import re
 
 from .config import (ASSETS, CONFIG, HEAD_BEGIN, HEAD_END, HEAD_RE, OG_VERSION, OPTIONAL_PAGES, SITE_NAME, SITE_URL,
                      SPECIAL_NAMES, accents)
+from .feed import FEED_LINK_TAG, feed_enabled
 from .meta import parse_meta
 
 BACKLINK_ID = "memo-backlink"
@@ -57,6 +58,8 @@ def head_block(text: str, filename: str) -> str:
         '<meta property="og:image:height" content="630">',
         '<meta name="twitter:card" content="summary_large_image">',
     ]
+    if feed_enabled():
+        lines.append(FEED_LINK_TAG)  # 新着メモの Atom フィード（dist/feed.xml）の自動検出
     if filename not in SPECIAL_NAMES:
         lines.append(PARTS_CSS_TAG)  # メモの共通部品（ページの <style> より後に読み込む）
     lines += [
@@ -195,8 +198,8 @@ def apply_quiz(text: str) -> str:
 #   <a href="…" data-memo-site-href="https://…/{repository}">  → 同じタグの href 属性を置き換える
 #   <meta … content="…" data-memo-site-content="{description}"> → content 属性を置き換える
 # 目印の属性はそのまま残るので、何度 build しても同じ結果になる。
-# オプションのページへのリンクなどには data-memo-if="項目" を付ける（項目は config.OPTIONAL_PAGES の値）。
-# memo.config.json でその項目がオフなら、要素ごと取り除く（オンなら何もしない）。
+# オプションのページへのリンクなどには data-memo-if="項目" を付ける（項目は config.OPTIONAL_PAGES の値と feed）。
+# memo.config.json でその項目がオフなら（feed は公開 URL が決まらず feed.xml を作らないなら）、要素ごと取り除く。
 #   <span data-memo-if="roadmap">· <a href="roadmap.html">ロードマップ</a></span>
 # 中に同じ名前のタグを入れ子にしない（最初の閉じタグまでを 1 つの要素とみなす）。
 
@@ -221,10 +224,16 @@ def _fill(template: str) -> str:
                          + ", ".join("{" + k + "}" for k in site_fields()) + f"）: {e}")
 
 
+def _if_conditions() -> dict[str, bool]:
+    """data-memo-if に書ける項目と、要素を残すか。オプションのページの項目と、feed（Atom フィードを作るとき）。"""
+    return {**{key: bool(CONFIG[key]) for key in OPTIONAL_PAGES.values()}, "feed": feed_enabled()}
+
+
 def _keep_if(key: str) -> bool:
-    if key not in OPTIONAL_PAGES.values():
-        raise SystemExit(f"data-memo-if の項目が知らないもの: {key!r}（使える項目: {', '.join(OPTIONAL_PAGES.values())}）")
-    return bool(CONFIG[key])
+    conds = _if_conditions()
+    if key not in conds:
+        raise SystemExit(f"data-memo-if の項目が知らないもの: {key!r}（使える項目: {', '.join(conds)}）")
+    return conds[key]
 
 
 def apply_site(text: str) -> str:
