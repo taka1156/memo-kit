@@ -406,8 +406,24 @@ SUMMARY_OK = ('<div class="card summary"><strong>ざっくり言うと</strong>'
 class DesignTest(unittest.TestCase):
     """共通部品の形と色のルール（memolib/design.py）。"""
 
-    def probs(self, head="", body=SUMMARY_OK):
-        return design.design_check(page(head, body))[0]
+    def probs(self, head="", body=SUMMARY_OK, strict=True):
+        return design.design_check(page(head, body), strict)[0]
+
+    def test_parts_shape_is_only_enforced_when_strict(self):
+        """strict_parts が false のサイトでは、関連メモ・参考・補足・凡例の形を強制せず、表の箱は [注意] だけ。"""
+        loose = {
+            '<p>関連: <a href="a.html">A</a></p>', '<p>参考: <a href="https://e.com">E</a></p>',
+            '<p class="muted">補足</p>', '<table><tr><td>1</td></tr></table>',
+        }
+        for body in loose:
+            self.assertTrue(self.probs(body=SUMMARY_OK + body, strict=True), body)
+            self.assertEqual(self.probs(body=SUMMARY_OK + body, strict=False), [], body)
+        for css in (".note{font-size:.8rem}", ".legend{gap:0}", ".table-wrap{overflow:auto}", ".related a{margin:0}"):
+            self.assertEqual(self.probs(f"<style>{css}</style>", strict=False), [], css)
+        self.assertTrue(self.probs("<style>.summary{margin:0}</style>", strict=False))  # 元からの共通部品は強制する
+        notes = design.design_check(page(body=SUMMARY_OK + "<table></table>"), False)[1]
+        self.assertTrue(any("table-wrap" in n for n in notes))
+        self.assertEqual(design.design_check(page(body=SUMMARY_OK + "<table></table>"), True)[1], [])
 
     def test_good_page_has_no_problems(self):
         css = ("<style>h1{color:var(--accent)} h2{border-left:3px solid var(--accent)} a{color:var(--accent)}"

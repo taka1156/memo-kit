@@ -163,6 +163,7 @@ GitHub の画面から HTML を直接アップロードしても、Actions の `
 | `utc_offset_hours` | 「今日」を決めるタイムゾーン | `0`（日本なら `9`） |
 | `quiz` | 確認クイズを使うか | `true` |
 | `roadmap` | ロードマップを公開するか | `false` |
+| `strict_parts` | 共通部品（関連メモ・参考・補足の文・凡例・表の箱）の形を lint で強制するか。`false` なら部品は使えるが形は自由で、表の箱がないことだけ注意する | `false` |
 | `branding` | アクセント色と、アイコン・OGP 画像の文字・色 | `{}` |
 
 `branding` の主な項目は `accent`（ダークモードの色）・`accent_light`（ライトモードの色。省くと自動）・`theme`（画像のテーマ）です。ほかに画像の文字を変える `title`・`tagline`・`url`・`mark`・`icon` があり、空ならサイト名などから埋まります。

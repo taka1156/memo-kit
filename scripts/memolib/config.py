@@ -42,6 +42,7 @@ DEFAULTS: dict = {
     "branding": {},               # アクセント色と、アイコン・OGP 画像の文字・色。項目は BRANDING_DEFAULTS
     "quiz": True,                 # 確認クイズを使うか。false なら quiz.html・quizzes.json・各メモのクイズ表示・トップのランダムクイズを作らない
     "roadmap": False,             # ロードマップ（src/roadmap.html）を公開して、トップページからリンクするか（オプション）
+    "strict_parts": False,        # 共通部品の形を lint で強制するか（関連メモ・参考・補足の文・凡例・表の箱。memolib/design.py）
 }
 
 # memo.config.json の "branding" の項目。空文字は「ほかの設定から決める」
@@ -62,7 +63,7 @@ HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$")
 
 # 文字列の項目と、空を許さないもの
 STRING_KEYS = ("site_name", "description", "llms_description", "repository", "branch", "deploy_branch")
-BOOL_KEYS = ("quiz", "roadmap")
+BOOL_KEYS = ("quiz", "roadmap", "strict_parts")
 REQUIRED_STRINGS = ("site_name", "branch", "deploy_branch")
 BRANDING_STRING_KEYS = ("title", "tagline", "url", "mark", "icon", "accent", "accent_light", "theme")
 

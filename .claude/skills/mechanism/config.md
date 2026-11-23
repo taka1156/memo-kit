@@ -6,6 +6,7 @@
 
 - 書き間違い（JSON・型・範囲・空にできない項目・`deploy_branch` が `branch` と同じ・知らない項目や `branding` のおかしな値）は、項目名と直し方を示して止まる（traceback は出さない）。項目を足すときはエラーの判定とテストの `tests/fixtures/memo.config.json` も直す。
 - `repository` が空・`owner/name` でない・テンプレートの値のときは、`build` が警告して続ける。
+- `strict_parts` は共通部品の形を lint で強制するか（`memolib/design.py`。サイトの書き方に合わせて選ぶ。memo-kit 自身は `false`）。
 - `quiz`・`roadmap` は `config.OPTIONAL_PAGES` でページ名と対応する。オフのページは `dist/` に出さず、`data-memo-if` の要素を消す。
 - `branding.accent_light` を省くと、`accent` を白地とのコントラスト比 4.5 以上になるまで暗くした色（`config.light_accent`）。同じ式が `memo-site.js` の `lightAccent` にもあるので、変えたら両方直す（`tests/fixtures/accents.json` で突き合わせる）。
 

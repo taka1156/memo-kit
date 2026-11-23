@@ -1,6 +1,8 @@
 """メモの見た目の決まり（memo-style の「共通部品」「色のルール」）のチェック。lint から呼ぶ。
 
-- 共通部品（src/assets/memo-parts.css）の形: ざっくり言うと・よくある誤解・関連メモ・表の横スクロールの箱・補足の文・凡例・参考
+- 共通部品（src/assets/memo-parts.css）の形: ざっくり言うと・よくある誤解・番号付きの手順
+- memo.config.json の strict_parts が true のサイトだけ: 関連メモ・参考・補足の文・凡例の形と、表の箱（.table-wrap）。
+  false なら、これらの部品は使ってもよい（CSS はどのサイトにもある）が形は強制せず、表の箱がないことだけ [注意] にする
 - アクセント色を付けてよい場所（h1・h2 の左線・段落のリンク・ボタンやタブの操作状態）以外で var(--accent) を使っていないか
 - 共通部品が決める色（--c-ok など）をページで上書きしていないか、飾り用の色やアクセント色に近い色を使っていないか
 
@@ -11,7 +13,7 @@ from __future__ import annotations
 import html
 import re
 
-from .config import accents
+from .config import CONFIG, accents
 
 # トップページと揃えるトークン（memo-style の「デザイントークン」）。--accent の値は build が上書きする
 TOKENS = {"--bg", "--surface", "--fg", "--fg-2", "--line", "--accent", "--chip"}
@@ -31,7 +33,9 @@ TAG_RE = re.compile(r"<[^>]+>")
 CODE_RE = re.compile(r"<pre\b.*?</pre>|<code\b.*?</code>", re.S | re.I)
 
 # 共通部品のセレクタ（ページの CSS で書き直さない）。番号付きの手順は基本形だけ（中に置く独自の要素の装飾はよい）
-PARTS_SELECTOR_RE = re.compile(r"^\.(note|muted|legend|sources)$|\.summary\b|\.myth\b|\.related\b|\.table-wrap\s*$|ol\.steps(\s*>?\s*li(::?before)?|\s+b)?\s*$")
+PARTS_SELECTOR_RE = re.compile(r"\.summary\b|\.myth\b|ol\.steps(\s*>?\s*li(::?before)?|\s+b)?\s*$")
+# strict_parts のサイトだけ書き直しを禁じる共通部品のセレクタ（.note などはよくある名前なので、ほかのサイトでは自由に使える）
+STRICT_PARTS_SELECTOR_RE = re.compile(r"^\.(note|muted|legend|sources)$|\.related\b|\.table-wrap\s*$")
 # 操作の状態（ここに付くアクセント色は「操作できる」目印として許す）
 STATE_RE = re.compile(r":(hover|focus|focus-visible|focus-within|active|checked)\b"
                       r"|\[aria-(selected|pressed|current|expanded)\b|\.(on|active|is-active|selected|current)\b")
@@ -96,11 +100,17 @@ def _rules(text: str):
             yield sel, body
 
 
-def css_problems(text: str) -> list[str]:
+def strict_parts(strict: bool | None = None) -> bool:
+    """共通部品の形を強制するか（引数がなければ memo.config.json の strict_parts）。"""
+    return bool(CONFIG["strict_parts"]) if strict is None else strict
+
+
+def css_problems(text: str, strict: bool | None = None) -> list[str]:
     probs: list[str] = []
     accent_bad, parts_rules, parts_vars, odd_vars, near = [], [], set(), set(), set()
+    selectors = [PARTS_SELECTOR_RE] + ([STRICT_PARTS_SELECTOR_RE] if strict_parts(strict) else [])
     for sel, body in _rules(text):
-        if any(PARTS_SELECTOR_RE.search(s.strip()) for s in sel.split(",")):
+        if any(r.search(s.strip()) for s in sel.split(",") for r in selectors):
             parts_rules.append(sel)
         for prop, value in DECL_RE.findall(body):
             prop = prop.strip().lower()
@@ -308,9 +318,13 @@ def sources_problems(text: str) -> list[str]:
     return probs
 
 
-def design_check(text: str) -> tuple[list[str], list[str]]:
-    """(problems, notes)。"""
+def design_check(text: str, strict: bool | None = None) -> tuple[list[str], list[str]]:
+    """(problems, notes)。strict（省略時は memo.config.json の strict_parts）が false なら、
+    関連メモ・参考・補足の文・凡例の形は見ず、表の箱がないことは notes（[注意]）にする。"""
     s_probs, notes = summary_problems(text)
-    return (s_probs + myth_problems(text) + related_problems(text) + table_problems(text) + note_problems(text)
-            + sources_problems(text) + css_problems(text)
-            + markup_problems(text)), notes
+    probs = s_probs + myth_problems(text)
+    if strict_parts(strict):
+        probs += related_problems(text) + table_problems(text) + note_problems(text) + sources_problems(text)
+    else:
+        notes = notes + table_problems(text)
+    return probs + css_problems(text, strict) + markup_problems(text), notes

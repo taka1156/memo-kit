@@ -50,6 +50,7 @@ rm -rf dist                                                                     
   "utc_offset_hours": 9,
   "quiz": true,
   "roadmap": false,
+  "strict_parts": false,
   "branding": { "accent": "#00d4ff", "accent_light": "#0077b6", "theme": "dark" }
 }
 ```
@@ -59,6 +60,7 @@ rm -rf dist                                                                     
 - `deploy_branch` は `build` の出力を置く公開用のブランチ（既定 `dist`。Actions が作る）。`branch` と同じにはできません。
 - `quiz` は確認クイズを使うか（既定 `true`）。`false` にすると、クイズのページ（`quiz.html`）・全問題のデータ・各メモのクイズ表示・トップページのランダムクイズを作らず、スキルも新しいメモにクイズを書きません。
 - `roadmap` はロードマップ（`src/roadmap.html`）を使うか（既定 `false`）。`true` にすると、`build` がロードマップのページを `dist/` に出し、各ページ上部のナビとトップページのフッターに「ロードマップ」のリンクを出します。`false` ならページもリンクも作りません（原本の `src/roadmap.html` は残るので、`true` に戻して `build` すれば元どおり出ます）。項目は `src/roadmap.html` の `ROADMAP` に書き、メモを公開すると自動でチェックが付きます（項目決めは `memo-roadmap` スキル）。詳しくは [memo-detail.md の「ロードマップ（オプション）」](memo-detail.md#ロードマップオプション)。
+- `strict_parts` は共通部品（関連メモ・参考・補足の文・凡例・表の箱）の形を lint で強制するか（既定 `false`）。書き方をそろえたいサイトだけ `true` にします。
 - 書き間違い（JSON の書式・型・範囲）は、`memo.py` を実行したときにどの項目をどう直すかを示して止まります。
 - `branding` はサイト全体のアクセント色と、アイコン・OGP 画像の文字・色です。
   - `accent` はダークモード、`accent_light` はライトモードのアクセント色。全ページ（トップ・クイズ・各メモ）に `build` が反映し、画像にも同じ色を使います（公開後は設定ページからも変えられます。下の「アクセント色を変える」）。`accent_light` を省くと、`accent` を白地で読める濃さまで自動で暗くします。
