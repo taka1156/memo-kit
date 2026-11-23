@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="ja">
+  <title>MemoKit</title>
+  <subtitle>Claude に作ってもらった解説ページの置き場</subtitle>
+  <id>https://repo.github.io/sample/</id>
+  <link rel="alternate" type="text/html" href="https://repo.github.io/sample/"/>
+  <link rel="self" type="application/atom+xml" href="https://repo.github.io/sample/feed.xml"/>
+  <updated>2026-01-10T00:00:00+09:00</updated>
+  <author><name>MemoKit</name></author>
+  <icon>https://repo.github.io/sample/assets/icon-192.png</icon>
+  <entry>
+    <title>サンプルのメモ</title>
+    <id>https://repo.github.io/sample/sample.html</id>
+    <link rel="alternate" type="text/html" href="https://repo.github.io/sample/sample.html"/>
+    <published>2026-01-10T00:00:00+09:00</published>
+    <updated>2026-01-10T00:00:00+09:00</updated>
+    <summary>テスト用のサンプル。クイズと別メモへのリンクを含む</summary>
+    <category term="サンプル"/>
+    <category term="テスト"/>
+  </entry>
+  <entry>
+    <title>クイズのないメモ</title>
+    <id>https://repo.github.io/sample/sample-plain.html</id>
+    <link rel="alternate" type="text/html" href="https://repo.github.io/sample/sample-plain.html"/>
+    <published>2026-01-05T00:00:00+09:00</published>
+    <updated>2026-01-05T00:00:00+09:00</updated>
+    <summary>テスト用のサンプル。クイズを含まない</summary>
+    <category term="テスト"/>
+  </entry>
+</feed>
