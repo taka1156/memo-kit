@@ -87,6 +87,7 @@ details.myth > summary + p::before {
    番号の丸は標準でグレー。意味があるときだけ li に is-ok / is-ng / is-warn / is-hl を付ける */
 ol.steps { list-style: none; counter-reset: memo-step; margin: 8px 0; padding: 0; display: grid; gap: 8px; }
 ol.steps > li {
+  min-width: 0;  /* grid の子。中の pre・長いコードで li ごと広がらないように */
   counter-increment: memo-step;
   position: relative;
   padding: 10px 12px 10px 44px;
@@ -113,6 +114,35 @@ ol.steps > li.is-warn::before { background: var(--c-warn); color: var(--bg); }
 ol.steps > li.is-hl::before { background: var(--c-hl); color: var(--bg); }
 ol.steps b { display: block; }
 
+/* <p class="note">補足の文</p>  本文より一段弱い補足・注記（span・div にも付けてよい） */
+.note { color: var(--fg-2); font-size: 0.85rem; }
+
+/* <div class="legend"><span><i style="background:var(--c-x)"></i>意味</span>…</div>  色・線の凡例
+   見本の形（枠だけ・丸・線など）はページで .legend i を書いて変えてよい */
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0; font-size: 0.78rem; color: var(--fg-2); }
+:where(.legend) i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+
+/* <h2 id="sources">参考</h2><ul class="sources"><li><a href="https://…">資料名</a>（補足）</li></ul>  ページの最後 */
+ul.sources { margin: 8px 0; padding-left: 1.2em; font-size: 0.78rem; color: var(--fg-2); }
+ul.sources a { overflow-wrap: anywhere; }
+
+/* <div class="table-wrap"><table>…</table></div>
+   表は必ずこの箱に入れる。スマホで列が収まらないとき、表だけが横に動く（ページは横に動かない） */
+.table-wrap { overflow-x: auto; margin: 10px 0; }
+
+/* <h2 id="related">関連メモ</h2>
+   <ul class="related"><li><a href="other.html">メモの名前</a> — このメモとどうつながるか</li></ul>
+   ページの最後（参考の前）に置く。本文の中で説明として出すリンクはこれとは別でよい */
+ul.related { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; }
+ul.related > li {
+  position: relative;
+  padding-left: 1.1em;
+  font-size: 0.9rem;
+  color: var(--fg-2);
+}
+ul.related > li::before { content: '›'; position: absolute; left: 0.2em; color: var(--fg-2); }
+ul.related > li > a { font-weight: 600; }
+
 /* ---------- 表やリストの中のリンク ---------- */
 /* 色を付けるとノイズになるので、普通の文字色＋点線の下線。class の付いたリンク（カード・ナビ）は対象外 */
 li a:not([class]),
@@ -127,3 +157,10 @@ li a:not([class]):hover,
 td a:not([class]):hover,
 th a:not([class]):hover,
 dd a:not([class]):hover { color: var(--accent); text-decoration-style: solid; }
+
+/* スマホで指で押せる大きさ（24px 以上）にそろえる。デモのチェックボックス・スライダー・小さいボタン・開閉 */
+input[type="range"] { min-height: 24px; }
+@media (max-width: 599px) {
+  input[type="checkbox"], input[type="radio"] { width: 24px; height: 24px; flex: none; }
+  button, summary { min-height: 24px; }
+}
