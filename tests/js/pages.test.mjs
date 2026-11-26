@@ -10,11 +10,11 @@ import { describe, expect, it } from 'vitest';
 const root = process.cwd();  // テストはリポジトリのルートで動かす（npm test）
 const out = mkdtempSync(join(tmpdir(), 'memo-pages-'));
 
-async function open(page) {
+async function open(page, search = '') {
   const file = join(out, `${page}.html`);
   execFileSync('python3', ['scripts/memo.py', 'preview', page, '-o', file], { cwd: root });
   const win = new Window({
-    url: `http://localhost/${page}.html`,
+    url: `http://localhost/${page}.html${search}`,
     settings: { enableJavaScriptEvaluation: true, disableJavaScriptFileLoading: true, disableCSSFileLoading: true },
   });
   const errors = [];
@@ -43,6 +43,41 @@ describe('仕組みのページ', () => {
       q.dispatchEvent(new doc.defaultView.Event('input'));
       expect([...doc.querySelectorAll('#list .card')].map(a => a.getAttribute('href'))).toContain(memos[0].file);
     }
+  });
+
+  it('index: ?q= で開くと検索欄に入って絞り込まれ、打つと URL の ?q= が変わる', async () => {
+    const { win, doc, data, errors } = await open('index', '?q=' + encodeURIComponent('これに当たるメモは無いはず-zzz'));
+    expect(errors).toEqual([]);
+    const q = doc.getElementById('q');
+    expect(q.value).toBe('これに当たるメモは無いはず-zzz');
+    if (data['memos.json'].length) expect(doc.querySelectorAll('#list .card').length).toBe(0);
+    q.value = 'docker';
+    q.dispatchEvent(new win.Event('input'));
+    expect(new URL(win.location.href).searchParams.get('q')).toBe('docker');
+    q.value = '';
+    q.dispatchEvent(new win.Event('input'));
+    expect(new URL(win.location.href).search).toBe('');
+    expect(doc.querySelectorAll('#list .card').length).toBe(data['memos.json'].length);
+  });
+
+  it('index: ?tag= で開くとそのタグで絞り込まれ、タグを押すと URL の ?tag= が変わる', async () => {
+    const memos = (await open('index')).data['memos.json'];
+    const tag = memos.flatMap(m => m.tags || [])[0];
+    if (!tag) return;
+    const { win, doc, errors } = await open('index', '?tag=' + encodeURIComponent(tag));
+    expect(errors).toEqual([]);
+    const pressed = [...doc.querySelectorAll('#tags .tag')].filter(b => b.getAttribute('aria-pressed') === 'true');
+    expect(pressed.map(b => b.textContent)).toEqual([tag]);
+    expect(doc.querySelectorAll('#list .card').length).toBe(memos.filter(m => (m.tags || []).includes(tag)).length);
+    pressed[0].click();
+    expect(new URL(win.location.href).searchParams.get('tag')).toBeNull();
+    expect(doc.querySelectorAll('#list .card').length).toBe(memos.length);
+  });
+
+  it('index: 一覧に無いタグの ?tag= は無視して全件を出す', async () => {
+    const { doc, data, errors } = await open('index', '?tag=' + encodeURIComponent('無いタグ-zzz'));
+    expect(errors).toEqual([]);
+    expect(doc.querySelectorAll('#list .card').length).toBe(data['memos.json'].length);
   });
 
   it('quiz: ランダムで始めて答えると、正誤と次へのボタンが出る', async () => {

@@ -36,6 +36,17 @@
   // Pagefind の抜粋はエスケープ済みの文字に <mark> を挟んだもの。<mark> 以外のタグが紛れても効かないようにする
   const safeExcerpt = s => String(s || '').split(/(<\/?mark>)/).map(p => /^<\/?mark>$/.test(p) ? p : p.replace(/</g, '&lt;').replace(/>/g, '&gt;')).join('');
 
+  // トップページの検索の状態を URL のパラメータにした URL（?q=検索語&tag=タグ。空なら消す）。ほかのパラメータと # はそのまま。
+  // ?q= や ?tag= 付きの URL で開くと、その検索の状態で開く（共有・ブックマーク・戻るで同じ結果に戻れるように）
+  function queryURL(href, params) {
+    const u = new URL(href);
+    for (const [key, value] of Object.entries(params)) {
+      const v = String(value || '').trim();
+      if (v) u.searchParams.set(key, v); else u.searchParams.delete(key);
+    }
+    return u.href;
+  }
+
   // 検索の結果を { memo, excerpt } の並びで返す。
   // found: Pagefind の結果（result.data() の中身）を関連度の順に並べたもの。null ならタイトル・説明・タグだけ。
   // Pagefind の結果を先に並べ、続けてタイトル・説明・タグに語がすべて入るメモで、まだ出ていないものを日付の順に足す
@@ -134,7 +145,7 @@
 
   return {
     esc, loadJSON,
-    normalizeQuery, safeExcerpt, searchMemos,
+    normalizeQuery, safeExcerpt, searchMemos, queryURL,
     shuffle, quizPool, tagCounts, secLabel, tagsLabel, condLabel, bestKey, countCorrect, renderChoices, markChoices,
     hex6, rgb, luminance, contrast, darken, lightAccent,
   };

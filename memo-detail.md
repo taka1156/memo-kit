@@ -148,6 +148,8 @@ GitHub の画面から HTML を直接アップロードしても、Actions の `
 
 **本文の検索**: トップページの検索は、デプロイのときに [Pagefind](https://pagefind.app/) で作る索引（`dist/pagefind/`）を使ってメモの本文まで探し、関連度の順に抜粋つきで並べます。索引は `build` では作りません（`memo.py` を標準ライブラリだけで動かすため）。手元で試すときは `npm ci` のあと `python3 scripts/memo.py build && npm run search-index` で作り、`python3 -m http.server -d dist` で開きます。索引が無いとき（`memo.py preview` の 1 枚版や、`build` だけしたとき）は、今までどおりタイトル・説明・タグから探します。どちらも全角・半角や大文字・小文字の違いはそろえ、空白で区切った語はすべてを含むものを探します。
 
+**URL で検索を開く**: `?q=検索語` と `?tag=タグ` を付けてトップページを開くと、その検索の状態で開きます（例: `https://alice.github.io/notes/?q=docker セキュリティ&tag=インフラ`）。検索欄やタグを変えると URL も書き換わる（履歴は増やさない）ので、見ている検索結果の URL をそのまま共有でき、メモを開いて戻っても同じ結果に戻れます。一覧に無いタグは無視します。ブラウザの「サイト内検索」に `公開 URL/?q=%s` を登録すれば、アドレスバーから引けます。
+
 **Atom フィード**: フィードリーダーに公開 URL（またはトップページのフッターの「フィード（Atom）」のリンク）を登録すると、新しいメモを追えます。各ページの `<head>` にも自動検出用の `<link rel="alternate">` が入ります。メモの日付は日単位なので、`utc_offset_hours` のタイムゾーンのその日 0 時を公開日時にします。
 
 **AI 向けの Markdown 版**: HTML は CSS や SVG で重いので、本文だけを Markdown にした版を作ります。公開 URL に `llms.txt` を付けたもの（例: `https://alice.github.io/notes/llms.txt`）を渡せば、リポジトリを繋いでいない会話でも Claude が過去のメモを読めます。

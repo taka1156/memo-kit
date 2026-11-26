@@ -249,7 +249,7 @@ footer a { color: var(--accent); }
 <script src="assets/memo-site.js"></script>
 <script>
 // 共通の処理は assets/memo-site.js（MemoSite）
-const { esc, loadJSON, renderChoices, markChoices, normalizeQuery, searchMemos } = MemoSite;
+const { esc, loadJSON, renderChoices, markChoices, normalizeQuery, searchMemos, queryURL } = MemoSite;
 // 一覧は memos.json、ランダムクイズの問題は quizzes.json から読み込む（どちらも memo.py build が生成。memo-detail.md 参照）
 
 const list = document.getElementById('list');
@@ -271,6 +271,7 @@ function buildTags() {
     b.setAttribute('aria-pressed', String(t === activeTag));
     b.onclick = () => {
       activeTag = activeTag === t ? null : t;
+      syncURL();
       tagBox.querySelectorAll('.tag').forEach(x =>
         x.setAttribute('aria-pressed', String(x.textContent === activeTag)));
       render();
@@ -309,7 +310,8 @@ async function loadList(fresh) {
     return;
   }
   buildTags();
-  render();
+  syncURL();  // 一覧に無いタグの ?tag= は外れているので、URL もそろえる
+  if (q.value.trim()) search(); else render();  // ?q= で開いたときは本文の検索もする
   randomQuiz.update(MEMOS.reduce((n, m) => n + (m.quizzes || 0), 0), fresh);
 }
 
@@ -329,7 +331,22 @@ async function loadPagefind() {
   return pagefind;
 }
 
+// 検索の状態と URL の ?q=（検索語）・?tag=（タグ）をそろえる。
+// 開いたときはパラメータを検索欄とタグに入れ（一覧に無いタグは buildTags が外す）、変えるたびに URL を書き換える（履歴は増やさない）
+function syncURL() {
+  try {
+    const next = queryURL(location.href, { q: q.value, tag: activeTag });
+    if (next !== location.href) history.replaceState(history.state, '', next);
+  } catch (e) { /* file:// などで書き換えられないときは何もしない */ }
+}
+{
+  const params = new URLSearchParams(location.search);
+  q.value = params.get('q') || q.value;
+  activeTag = params.get('tag') || null;
+}
+
 async function search() {
+  syncURL();
   render();  // タイトル・説明・タグで見つかるものは先に出す
   const word = normalizeQuery(q.value);
   if (!word || (found && found.word === word)) return;

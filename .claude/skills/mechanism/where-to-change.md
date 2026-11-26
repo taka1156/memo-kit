@@ -13,7 +13,7 @@
 | クイズ表示の枠・入る場所 | `memolib/blocks.py` の `QUIZ_BLOCK`・`apply_quiz` | build で全メモが変わる |
 | アイコン・OGP のタグ | `memolib/blocks.py` の `head_block` | build で全ページが変わる |
 | Atom フィードの中身・件数 | `memolib/feed.py` の `atom_feed`・`FEED_LIMIT` | build で `feed.xml` が変わる |
-| トップページの検索（並べ方・抜粋・語のそろえ方） | `src/assets/memo-site.js` の `searchMemos`・`normalizeQuery`、`src/index.html` の `search` | `npm test` |
+| トップページの検索（並べ方・抜粋・語のそろえ方・URL の `?q=`・`?tag=`） | `src/assets/memo-site.js` の `searchMemos`・`normalizeQuery`・`queryURL`、`src/index.html` の `search`・`syncURL` | `npm test` |
 | 本文検索の索引に入れる範囲・Pagefind の版 | `package.json` の `search-index`・`dependencies`（版を変えたら `npm install --ignore-scripts` で lock も） | `npm run search-index` で確かめる |
 | 一覧に載せる項目 | `memolib/meta.py` の `read_meta`、`memolib/site.py` の `memos_json` | build |
 | Markdown 版の変換 | `memolib/markdown.py` の `_ToMarkdown`・`html_to_markdown` | build で全 Markdown 版が変わる |

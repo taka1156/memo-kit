@@ -21,6 +21,7 @@
 
 - `build` は作らない（`memo.py` は標準ライブラリだけ）。デプロイが `build` のあとに `npm run search-index`（`package.json`）で `dist/pagefind/` に作る。`build` は許可リストに無い `dist/pagefind/` を消すので、手元では `build` のたびに作り直す。
 - 対象は `dist/` の全ページ。フッター（`#memo-backlink`）とクイズの表示枠（`#memo-quiz-ui`）は除く（`--exclude-selectors`）。問題データは `<script>` の中なので入らない。仕組みのページも索引に入るが、トップページが `memos.json` に無いページを出さない。
+- トップページは `?q=`（検索語）・`?tag=`（タグ）で開くとその状態で開き、検索欄やタグを変えるたびに `history.replaceState` で URL をそろえる（`index.html` の `syncURL`、URL の組み立ては `memo-site.js` の `queryURL`）。一覧に無いタグは外す。
 - トップページは検索語を入れたときに `./pagefind/pagefind.js` を読み込む。読み込めなければ（preview・索引なし）タイトル・説明・タグだけで探す。結果の並べ方と抜粋の扱いは `memo-site.js` の `searchMemos`（Pagefind の結果を関連度の順 → タイトル・説明・タグでだけ当たるものを日付の順）。
 
 ## 自動生成ブロック（`memolib/blocks.py`）

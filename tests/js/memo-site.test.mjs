@@ -151,3 +151,12 @@ describe('一覧の検索', () => {
     expect(r[1].excerpt).toBeUndefined();
   });
 });
+
+describe('queryURL', () => {
+  it('検索語とタグをパラメータに入れ、空なら消す。ほかのパラメータと # は残す', () => {
+    expect(site.queryURL('https://x.test/notes/?a=1#top', { q: 'docker セキュリティ', tag: 'インフラ' }))
+      .toBe('https://x.test/notes/?a=1&q=docker+%E3%82%BB%E3%82%AD%E3%83%A5%E3%83%AA%E3%83%86%E3%82%A3&tag=%E3%82%A4%E3%83%B3%E3%83%95%E3%83%A9#top');
+    expect(site.queryURL('https://x.test/notes/?q=old&a=1&tag=x', { q: '  ', tag: null })).toBe('https://x.test/notes/?a=1');
+    expect(site.queryURL('https://x.test/notes/', { q: '' })).toBe('https://x.test/notes/');
+  });
+});
