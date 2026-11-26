@@ -111,6 +111,8 @@ h1 {
 .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--fg-2); }
 .meta span.t { background: var(--chip); border-radius: 4px; padding: 1px 6px; }
 .meta time { margin-left: auto; }
+.card .hit { flex: none; font-size: 0.76rem; color: var(--fg-2); line-height: 1.6; border-left: 2px solid var(--line); padding-left: 8px; overflow-wrap: anywhere; }
+.card .hit mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: var(--fg); border-radius: 2px; padding: 0 1px; }
 .empty { color: var(--fg-2); font-size: 0.85rem; padding: 24px 0; }
 /* ランダムクイズ（普段は閉じておく） */
 .rq { margin: -8px 0 20px; }
@@ -247,7 +249,7 @@ footer a { color: var(--accent); }
 <script src="assets/memo-site.js"></script>
 <script>
 // 共通の処理は assets/memo-site.js（MemoSite）
-const { esc, loadJSON, renderChoices, markChoices } = MemoSite;
+const { esc, loadJSON, renderChoices, markChoices, normalizeQuery, searchMemos } = MemoSite;
 // 一覧は memos.json、ランダムクイズの問題は quizzes.json から読み込む（どちらも memo.py build が生成。memo-detail.md 参照）
 
 const list = document.getElementById('list');
@@ -256,6 +258,7 @@ const q = document.getElementById('q');
 const tagBox = document.getElementById('tags');
 let MEMOS = [];
 let activeTag = null;
+let found = null;  // 本文の検索（Pagefind）の結果 { word, results }。今の検索語のものだけ使う
 
 function buildTags() {
   const allTags = [...new Set(MEMOS.flatMap(m => m.tags || []))].sort();
@@ -277,16 +280,16 @@ function buildTags() {
 }
 
 function render() {
-  const word = q.value.trim().toLowerCase();
-  const items = MEMOS
-    .filter(m => !activeTag || (m.tags || []).includes(activeTag))
-    .filter(m => !word || [m.title, m.desc, ...(m.tags || [])].join(' ').toLowerCase().includes(word))
-    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const word = normalizeQuery(q.value);
+  const items = searchMemos(MEMOS, word, found && found.word === word ? found.results : null)
+    .filter(({ memo: m }) => !activeTag || (m.tags || []).includes(activeTag));
 
-  list.innerHTML = items.map(m => `
+  // 抜粋（hit）は Pagefind が作ったもの。searchMemos が <mark> 以外のタグを効かなくしてある
+  list.innerHTML = items.map(({ memo: m, excerpt }) => `
     <a class="card" href="${esc(m.file)}">
       <h2>${esc(m.title)}</h2>
       <p>${esc(m.desc || '')}</p>
+      ${excerpt ? `<p class="hit">…${excerpt}…</p>` : ''}
       <div class="meta">
         ${(m.tags || []).map(t => `<span class="t">${esc(t)}</span>`).join('')}
         ${m.date ? `<time>${esc(m.date)}</time>` : ''}
@@ -310,7 +313,37 @@ async function loadList(fresh) {
   randomQuiz.update(MEMOS.reduce((n, m) => n + (m.quizzes || 0), 0), fresh);
 }
 
-q.addEventListener('input', render);
+// ---- 本文の検索（Pagefind）
+// 索引（pagefind/）はデプロイのときに作る。preview（window.MEMO_DATA がある 1 枚版）や、手元で build しただけで索引が無いときは
+// 読み込みに失敗するので、タイトル・説明・タグだけで探す（searchMemos）
+let pagefind;  // まだ読み込んでいない: undefined、使えない: null
+async function loadPagefind() {
+  if (pagefind !== undefined) return pagefind;
+  pagefind = null;
+  if (globalThis.MEMO_DATA) return null;
+  try {
+    const pf = await import('./pagefind/pagefind.js');
+    await pf.init();
+    pagefind = pf;
+  } catch (e) { /* 索引が無い */ }
+  return pagefind;
+}
+
+async function search() {
+  render();  // タイトル・説明・タグで見つかるものは先に出す
+  const word = normalizeQuery(q.value);
+  if (!word || (found && found.word === word)) return;
+  const pf = await loadPagefind();
+  if (!pf) return;
+  const res = await pf.debouncedSearch(word, {}, 200);  // 打ち続けている間は null（新しい語で探し直す）
+  if (!res || normalizeQuery(q.value) !== word) return;
+  const results = await Promise.all(res.results.slice(0, 40).map(r => r.data()));
+  if (normalizeQuery(q.value) !== word) return;
+  found = { word, results };
+  render();
+}
+
+q.addEventListener('input', search);
 
 document.getElementById('refresh').addEventListener('click', e => {
   const btn = e.currentTarget;

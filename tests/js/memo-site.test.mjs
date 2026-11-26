@@ -115,3 +115,39 @@ describe('loadJSON', () => {
     await expect(site.loadJSON('memos.json')).rejects.toThrow('memos.json: HTTP 404');
   });
 });
+
+describe('一覧の検索', () => {
+  const memos = [
+    { file: 'a.html', title: 'JWT とセッション', desc: 'トークンの置き場所', tags: ['セキュリティ'], date: '2026-01-01' },
+    { file: 'b.html', title: 'Docker 動作原理', desc: 'コンテナの仕組み', tags: ['インフラ'], date: '2026-03-01' },
+    { file: 'c.html', title: 'イメージを小さく', desc: 'Docker イメージ', tags: ['インフラ', 'セキュリティ'], date: '2026-02-01' },
+  ];
+  const files = r => r.map(x => x.memo.file);
+
+  it('normalizeQuery: 全角・半角と大文字・小文字をそろえる', () => {
+    expect(site.normalizeQuery('  ＪＷＴ Docker ')).toBe('jwt docker');
+    expect(site.normalizeQuery(undefined)).toBe('');
+  });
+  it('safeExcerpt: <mark> だけを残し、ほかのタグは効かなくする', () => {
+    expect(site.safeExcerpt('a <mark>b</mark> &lt;c&gt;')).toBe('a <mark>b</mark> &lt;c&gt;');
+    expect(site.safeExcerpt('<img src=x onerror=alert(1)><mark>x</mark>')).toBe('&lt;img src=x onerror=alert(1)&gt;<mark>x</mark>');
+  });
+  it('searchMemos: 語が無ければ全メモを新しい順', () => {
+    expect(files(site.searchMemos(memos, ' ', null))).toEqual(['b.html', 'c.html', 'a.html']);
+  });
+  it('searchMemos: 索引が無いときはタイトル・説明・タグで、空白区切りの語をすべて含むもの', () => {
+    expect(files(site.searchMemos(memos, 'ｄｏｃｋｅｒ', null))).toEqual(['b.html', 'c.html']);
+    expect(files(site.searchMemos(memos, 'docker セキュリティ', null))).toEqual(['c.html']);
+  });
+  it('searchMemos: Pagefind の結果を関連度の順に先に出し、一覧に無いページは除き、取りこぼしを後ろに足す', () => {
+    const found = [
+      { url: '/sub/a.html', excerpt: '<mark>docker</mark> の話' },
+      { url: '/index.html', excerpt: 'x' },
+      { url: '/a.html', excerpt: '重複' },
+    ];
+    const r = site.searchMemos(memos, 'docker', found);
+    expect(files(r)).toEqual(['a.html', 'b.html', 'c.html']);
+    expect(r[0].excerpt).toBe('<mark>docker</mark> の話');
+    expect(r[1].excerpt).toBeUndefined();
+  });
+});

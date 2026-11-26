@@ -62,7 +62,7 @@ flowchart LR
 | 場所 | 中身 |
 | --- | --- |
 | `src/NAME.html` | メモ 1 本（本文・メタ情報・問題データ） |
-| `src/index.html` | トップページ（一覧・検索・タグ絞り込み・ランダムクイズ） |
+| `src/index.html` | トップページ（一覧・本文検索・タグ絞り込み・ランダムクイズ） |
 | `src/quiz.html` | クイズページ（10 問クイズ・タイムアタック） |
 | `src/settings.html` | 設定ページ（アクセント色を試す） |
 | `src/roadmap.html` | ロードマップ（オプション） |
@@ -146,6 +146,8 @@ GitHub の画面から HTML を直接アップロードしても、Actions の `
 | `entry-skill/SKILL.md` | claude.ai のアプリに登録する入口スキル |
 | `assets/`・`CNAME`・`.nojekyll` | `src/` からのコピー |
 
+**本文の検索**: トップページの検索は、デプロイのときに [Pagefind](https://pagefind.app/) で作る索引（`dist/pagefind/`）を使ってメモの本文まで探し、関連度の順に抜粋つきで並べます。索引は `build` では作りません（`memo.py` を標準ライブラリだけで動かすため）。手元で試すときは `npm ci` のあと `python3 scripts/memo.py build && npm run search-index` で作り、`python3 -m http.server -d dist` で開きます。索引が無いとき（`memo.py preview` の 1 枚版や、`build` だけしたとき）は、今までどおりタイトル・説明・タグから探します。どちらも全角・半角や大文字・小文字の違いはそろえ、空白で区切った語はすべてを含むものを探します。
+
 **Atom フィード**: フィードリーダーに公開 URL（またはトップページのフッターの「フィード（Atom）」のリンク）を登録すると、新しいメモを追えます。各ページの `<head>` にも自動検出用の `<link rel="alternate">` が入ります。メモの日付は日単位なので、`utc_offset_hours` のタイムゾーンのその日 0 時を公開日時にします。
 
 **AI 向けの Markdown 版**: HTML は CSS や SVG で重いので、本文だけを Markdown にした版を作ります。公開 URL に `llms.txt` を付けたもの（例: `https://alice.github.io/notes/llms.txt`）を渡せば、リポジトリを繋いでいない会話でも Claude が過去のメモを読めます。
@@ -212,13 +214,20 @@ claude.ai のアプリから使うときは、`build` が作る `dist/entry-skil
 
 | ワークフロー | いつ動くか | やること |
 | --- | --- | --- |
-| `Deploy MEMO`（`deploy.yml`） | デフォルトブランチへの push | テスト → lint → `build --strict` → dist ブランチにコミット |
+| `Deploy MEMO`（`deploy.yml`） | デフォルトブランチへの push | テスト → lint → `build --strict` → 本文検索の索引（Pagefind）→ dist ブランチにコミット |
 | `Test memo.py`（`test.yml`） | スクリプト・テストなどの変更（PR も含む） | Python と JS のテスト |
 | `Check parts look`（`visual.yml`） | 共通部品の CSS・テンプレートなどの変更（PR も含む） | 変更の前後のスクリーンショットを比べ、変わっていれば警告と差分画像 |
 | `Set accent color`（`set-accent.yml`） | 手動 | アクセント色を固定して公開 |
 | `Check memo-kit`（`kit-sync.yml`） | 週 1 回（テンプレートから作ったリポジトリだけ） | memo-kit との違いを知らせる |
 
 最初に Settings → Actions → General → Workflow permissions を「Read and write permissions」にしておきます（[README](README.md#5-github-の設定)）。
+
+外から入れるもの（Actions と npm のパッケージ）は、乗っ取られた版が入ったときの被害を小さくするため、次のようにしています。
+
+- Actions はコミットの SHA で固定する（タグの付け替えで中身が変わらないように）。
+- npm のパッケージは `package-lock.json` で版と中身を固定し、`npm ci --ignore-scripts` でインストール時のスクリプトを動かさない。
+- `Deploy MEMO` で動かす外のパッケージは Pagefind だけ（`--omit=dev`）。checkout は認証情報を残さず（`persist-credentials: false`）、トークンは dist ブランチに push するステップにだけ渡す。
+- Renovate は、npm のパッケージと Actions の新しい版を公開から 3 日たつまで PR にしない（`renovate.json`。脆弱性の修正は待たない）。
 
 ## コードの構成とテスト
 

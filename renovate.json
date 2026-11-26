@@ -1,6 +1,15 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "security:minimumReleaseAgeNpm",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "packageRules": [
+    {
+      "description": "GitHub Actions も公開から 3 日たつまで更新の PR を作らない（乗っ取られた版が見つかって取り下げられるのを待つ）",
+      "matchManagers": ["github-actions"],
+      "minimumReleaseAge": "3 days"
+    }
   ]
 }

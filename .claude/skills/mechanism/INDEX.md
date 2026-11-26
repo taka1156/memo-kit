@@ -23,4 +23,4 @@
 - サイトごとの値（サイト名・リポジトリ・ブランチ・タイムゾーン・ドメイン・色）は `memo.config.json` だけに書く。スキルは `memo.py config KEY` で読む。
 - パスを知っているのは `memolib/config.py` だけ。スキルは `memo.py path NAME` で引く。
 - 依存してよいのは memo-kit だけ。同じ memo-kit から作ったほかのサイトの URL・`llms.txt`・リポジトリを参照しない。
-- 標準ライブラリだけで動かす（`branding/render.py` と JS のテストを除く）。
+- 標準ライブラリだけで動かす（`branding/render.py`・JS のテスト・本文検索の索引（Pagefind）を除く）。

@@ -1,9 +1,13 @@
 {
   "name": "memo-site-js-tests",
   "private": true,
-  "description": "仕組みのページの JS（src/assets/memo-site.js・memo-quiz.js）のテスト。memo.py は標準ライブラリだけで動き、これには依存しない",
+  "description": "仕組みのページの JS（src/assets/memo-site.js・memo-quiz.js）のテストと、一覧の本文検索の索引（Pagefind）を作るためのもの。memo.py は標準ライブラリだけで動き、これには依存しない",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "search-index": "pagefind --site dist --exclude-selectors \"#memo-backlink\" --exclude-selectors \"#memo-quiz-ui\""
+  },
+  "dependencies": {
+    "pagefind": "1.6.0"
   },
   "devDependencies": {
     "happy-dom": "21.0.4",

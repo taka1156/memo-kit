@@ -4,10 +4,16 @@
 
 **`deploy.yml`（Deploy MEMO）**
 - 起動: デフォルトブランチへの push（`src/`・`scripts/`・`memo.config.json`・このワークフローの変更）、手動、`set-accent.yml` からの呼び出し。ブランチ名はワークフローに書かない。
-- 手順: 履歴ごと checkout（日付の推定に使う）→ `memo.py config branch` がデフォルトブランチと同じか確かめる（違えば止める）→ Python のテスト（`MEMO_SKIP_REPO_TESTS` 付き。本物のメモの状態では止めない）→ 全メモを lint（報告のみ。メモ 0 本なら省略）→ `build --strict`。
-- コミット: dist ブランチ（`config deploy_branch`）を `dist/` の中身で丸ごと置き換え、変わっていれば `Deploy <元のコミット>` で push。ブランチが無ければ orphan で作る。原本のブランチには何もコミットしない。
+- 起動の対象には `package.json`・`package-lock.json`（Pagefind の版）も入る。
+- 手順: 履歴ごと checkout（日付の推定に使う。`persist-credentials: false`）→ `memo.py config branch` がデフォルトブランチと同じか確かめる（違えば止める）→ Python のテスト（`MEMO_SKIP_REPO_TESTS` 付き。本物のメモの状態では止めない）→ 全メモを lint（報告のみ。メモ 0 本なら省略）→ `build --strict` → 本文検索の索引（`npm ci --omit=dev --ignore-scripts` → `npm run search-index`。`dist/pagefind/` に書く）。
+- コミット: dist ブランチ（`config deploy_branch`）を `dist/` の中身で丸ごと置き換え、変わっていれば `Deploy <元のコミット>` で push。ブランチが無ければ orphan で作る。原本のブランチには何もコミットしない。トークンはこのステップの env にだけ渡し、dist ブランチを読み書きする git コマンドに `http.extraheader` で付ける（`git_auth`）。
 - `concurrency` で同じブランチの実行は 1 本ずつ（途中で止めない）。dist ブランチに書くのはこれだけ。
-- JS のテストは流さない（書き込み権限のあるジョブで外のパッケージを動かさないため）。
+- JS のテストは流さない（`test.yml` が流す）。外のパッケージは Pagefind だけ。
+
+**外から入れるものの扱い（全ワークフロー）**
+- `uses:` はコミットの SHA で固定し、後ろに `# vX.Y.Z` を書く（Renovate の `helpers:pinGitHubActionDigests` が SHA ごと更新する）。
+- `npm ci` には `--ignore-scripts` を付ける（インストール時のスクリプトを動かさない。Playwright のブラウザは `npx playwright install` で別に入れる）。版と中身は `package-lock.json`。
+- Renovate は npm（`security:minimumReleaseAgeNpm`）と Actions（`packageRules`）の新しい版を公開から 3 日たつまで PR にしない。脆弱性アラートからの更新は待たない（Renovate の既定）。
 
 **`test.yml`（Test memo.py）**: 仕組みのファイル（`scripts/`・`tests/`・共通 JS / CSS（`memo-parts.css` を含む）・4 ページ・`memo.config.json`・テンプレート・`package*.json`・`vitest.config.mjs`）の変更で、どのブランチでも PR でも動く。Python と JS（`npm ci && npm test`）のテスト。読み取り権限だけ。
 

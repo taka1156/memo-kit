@@ -26,6 +26,37 @@
     return res.json();
   }
 
+  // ---- 一覧の検索
+  // 本文まで探すのは Pagefind（デプロイのときに dist/pagefind/ に索引を作る。npm run search-index）。
+  // 索引が無いとき（preview・手元で build しただけ）はタイトル・説明・タグの部分一致だけで探す。
+  // 全角・半角や大文字・小文字の違いはそろえる（ＪＷＴ → jwt）
+  const normalizeQuery = s => String(s || '').normalize('NFKC').toLowerCase().trim();
+  const byDate = (a, b) => (b.date || '').localeCompare(a.date || '');
+  const fileOf = url => decodeURIComponent(new URL(url, 'http://x/').pathname.split('/').pop() || 'index.html');
+  // Pagefind の抜粋はエスケープ済みの文字に <mark> を挟んだもの。<mark> 以外のタグが紛れても効かないようにする
+  const safeExcerpt = s => String(s || '').split(/(<\/?mark>)/).map(p => /^<\/?mark>$/.test(p) ? p : p.replace(/</g, '&lt;').replace(/>/g, '&gt;')).join('');
+
+  // 検索の結果を { memo, excerpt } の並びで返す。
+  // found: Pagefind の結果（result.data() の中身）を関連度の順に並べたもの。null ならタイトル・説明・タグだけ。
+  // Pagefind の結果を先に並べ、続けてタイトル・説明・タグに語がすべて入るメモで、まだ出ていないものを日付の順に足す
+  // （Pagefind の区切り方で取りこぼした語も、今までどおり見つかるように）。語が無ければ全メモを日付の順に
+  function searchMemos(memos, word, found) {
+    const terms = normalizeQuery(word).split(/\s+/).filter(Boolean);
+    if (!terms.length) return memos.slice().sort(byDate).map(memo => ({ memo }));
+    const byFile = new Map(memos.map(m => [m.file, m]));
+    const out = [];
+    const seen = new Set();
+    for (const d of found || []) {
+      const memo = byFile.get(fileOf(d.url));
+      if (!memo || seen.has(memo.file)) continue;  // 仕組みのページなど、一覧に無いものは出さない
+      seen.add(memo.file);
+      out.push({ memo, excerpt: safeExcerpt(d.excerpt) });
+    }
+    const text = m => normalizeQuery([m.title, m.desc, ...(m.tags || [])].join(' '));
+    const rest = memos.filter(m => !seen.has(m.file) && terms.every(t => text(m).includes(t))).sort(byDate);
+    return out.concat(rest.map(memo => ({ memo })));
+  }
+
   // ---- クイズ
   // 偏りのないシャッフル（Fisher–Yates）。元の配列は変えない。rand はテスト用に差し替えられる
   function shuffle(a, rand = Math.random) {
@@ -103,6 +134,7 @@
 
   return {
     esc, loadJSON,
+    normalizeQuery, safeExcerpt, searchMemos,
     shuffle, quizPool, tagCounts, secLabel, tagsLabel, condLabel, bestKey, countCorrect, renderChoices, markChoices,
     hex6, rgb, luminance, contrast, darken, lightAccent,
   };

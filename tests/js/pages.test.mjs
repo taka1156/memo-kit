@@ -37,6 +37,11 @@ describe('仕組みのページ', () => {
       q.dispatchEvent(new doc.defaultView.Event('input'));
       expect(doc.querySelectorAll('#list .card').length).toBe(0);
       expect(doc.getElementById('empty').hidden).toBe(false);
+      // 索引（pagefind/）の無い 1 枚版でも、全角で打ったタイトルで見つかる
+      const wide = s => s.normalize('NFKC').replace(/[A-Za-z0-9]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xFEE0));
+      q.value = wide(memos[0].title);
+      q.dispatchEvent(new doc.defaultView.Event('input'));
+      expect([...doc.querySelectorAll('#list .card')].map(a => a.getAttribute('href'))).toContain(memos[0].file);
     }
   });
 

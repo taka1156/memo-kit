@@ -11,6 +11,8 @@ on:
       - "src/**" # メモ・トップ・共通ファイル・画像・CNAME
       - "scripts/**" # memo.py と memolib/
       - "memo.config.json" # サイト名・リポジトリ・ブランチ・アクセント色・ロードマップ・クイズ
+      - "package.json" # 本文検索の索引を作る Pagefind の版
+      - "package-lock.json"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
   workflow_call: # Set accent color が設定を変えたあとに呼ぶ（Actions からの push では push のワークフローが動かないため）
@@ -28,13 +30,15 @@ jobs:
     if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # push なら push されたコミット、それ以外（手動・Set accent color から）はデフォルトブランチの最新
           ref: ${{ github.event_name == 'push' && github.sha || github.event.repository.default_branch }}
           fetch-depth: 0 # memo:date がないメモの日付を git 履歴から推定するため
+          # 認証情報を .git/config に残さない（下の Pagefind などのステップから読めないように）。push するステップでだけ渡す
+          persist-credentials: false
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.15"
 
@@ -51,7 +55,7 @@ jobs:
           fi
 
       # テストに落ちたら公開しない（壊れた memo.py で dist ブランチを上書きしないため）。
-      # JS のテスト（npm）はここでは動かさない（書き込み権限のあるジョブで外のパッケージを動かさないため。test.yml が流す）。
+      # JS のテスト（npm）はここでは動かさない（test.yml が流す）。
       # 本物のメモの検査（全メモの lint など）は飛ばす。メモの指摘は下の lint の注釈と build --strict に任せる
       - name: Test
         env:
@@ -69,17 +73,35 @@ jobs:
       - name: Build
         run: python3 scripts/memo.py build --strict
 
+      # 一覧の本文検索の索引（dist/pagefind/）。外のパッケージはこれだけで、次の対策をしている:
+      # 版と中身は package-lock.json で固定（npm ci が integrity を照合）・インストール時のスクリプトは動かさない（--ignore-scripts）・
+      # 入れるのは dependencies の pagefind だけ（--omit=dev）・トークンはこのステップに渡さない（checkout の persist-credentials: false）・
+      # 新しい版は公開から 3 日たってから Renovate が PR を作る（renovate.json）
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+
+      - name: Search index
+        run: |
+          npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+          npm run search-index
+
       - name: Commit dist/ to the deploy branch
         # dist/ の中身でデプロイ用ブランチを丸ごと置き換えてコミットする（履歴は残すので、生成物の変化も追える）。
         # ブランチがまだなければ、履歴のない（orphan）ブランチとして作る。
+        env:
+          TOKEN: ${{ github.token }}
         run: |
           deploy_branch="$(python3 scripts/memo.py config deploy_branch)"
+          # checkout で認証情報を残していないので、dist ブランチを読み書きするコマンドにだけトークンを付ける
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "${TOKEN}" | base64 -w0)"
+          git_auth() { git -c "http.https://github.com/.extraheader=${auth}" "$@"; }
           source_sha="$(git rev-parse --short HEAD)"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           out="${RUNNER_TEMP}/deploy"
-          if git ls-remote --exit-code --heads origin "${deploy_branch}" >/dev/null; then
-            git fetch -q --depth 1 origin "${deploy_branch}"
+          if git_auth ls-remote --exit-code --heads origin "${deploy_branch}" >/dev/null; then
+            git_auth fetch -q --depth 1 origin "${deploy_branch}"
             git worktree add -q --detach "${out}" FETCH_HEAD
           else
             git worktree add -q --detach "${out}"
@@ -93,5 +115,5 @@ jobs:
             exit 0
           fi
           git -C "${out}" commit -q -m "Deploy ${source_sha}"
-          git -C "${out}" push -q origin "HEAD:refs/heads/${deploy_branch}"
+          git_auth -C "${out}" push -q origin "HEAD:refs/heads/${deploy_branch}"
           echo "### ${deploy_branch} ブランチにデプロイしました（元のコミット: ${source_sha}）" >> "$GITHUB_STEP_SUMMARY"
