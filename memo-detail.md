@@ -27,7 +27,7 @@ MemoKit が「何をどこに書き、どう公開するか」の説明です。
 ## 基本の考え方
 
 - **原本だけを手で書き、ほかはすべて生成する。** 原本は各メモの本文・`<head>` のメタ情報・クイズの問題データの 3 つです。一覧・Markdown 版・各ページに差し込むタグはスクリプトが作ります。
-- **原本は `src/`、生成物は `dist/`。** `build` は `src/` を読むだけで書き換えません。`dist/` はコミットせず、GitHub Actions が中身を **dist ブランチ**に置いて GitHub Pages で公開します。公開されるのは `dist/` の中身だけです。
+- **原本は `src/`、生成物は `dist/`。** `build` は `src/` を読むだけで書き換えません。`dist/` はコミットせず、GitHub Actions が中身を GitHub Pages の公式 Action でそのまま公開します（公開用のブランチは作りません）。公開されるのは `dist/` の中身だけです。
 - **同じものを 2 か所に書かない。** クイズの CSS / JS や仕組みのページの共通処理は `src/assets/` に 1 つだけ置き、各ページは参照します。
 - **サイトごとの値は `memo.config.json` だけに書く。** サイト名・リポジトリ・ブランチなどを、コード・スキル・ページに直接書きません。
 - **依存してよいのは memo-kit だけ。** 同じ memo-kit から作ったほかのサイトの URL やリポジトリを参照しません（サイトが増えるたびに全サイトを直すことになるため）。
@@ -56,7 +56,7 @@ flowchart LR
   end
 
   H & PG & AS & CFG --> B --> GEN
-  GEN -->|"GitHub Actions"| S["dist ブランチ → GitHub Pages"]
+  GEN -->|"GitHub Actions"| S["GitHub Pages"]
 ```
 
 | 場所 | 中身 |
@@ -129,7 +129,7 @@ sequenceDiagram
   U->>G: src/ の原本だけを push
   G->>A: Deploy MEMO が起動
   A->>A: テスト → lint → build --strict
-  A->>G: dist/ の中身を dist ブランチにコミット → Pages で公開
+  A->>G: dist/ の中身を Pages で公開
 ```
 
 GitHub の画面から HTML を直接アップロードしても、Actions の `build` が一覧に載せて公開します。
@@ -161,7 +161,6 @@ GitHub の画面から HTML を直接アップロードしても、Actions の `
 | `llms_description` | `llms.txt` の冒頭の説明 | 空 |
 | `repository` | GitHub の `owner/name` | 空（`build` が警告） |
 | `branch` | 原本のブランチ | `main` |
-| `deploy_branch` | 公開用のブランチ（`branch` と同じにはできない） | `dist` |
 | `utc_offset_hours` | 「今日」を決めるタイムゾーン | `0`（日本なら `9`） |
 | `quiz` | 確認クイズを使うか | `true` |
 | `roadmap` | ロードマップを公開するか | `false` |
@@ -214,19 +213,19 @@ claude.ai のアプリから使うときは、`build` が作る `dist/entry-skil
 
 | ワークフロー | いつ動くか | やること |
 | --- | --- | --- |
-| `Deploy MEMO`（`deploy.yml`） | デフォルトブランチへの push | テスト → lint → `build --strict` → 本文検索の索引（Pagefind）→ dist ブランチにコミット |
+| `Deploy MEMO`（`deploy.yml`） | デフォルトブランチへの push | テスト → lint → `build --strict` → 本文検索の索引（Pagefind）→ Pages で公開 |
 | `Test memo.py`（`test.yml`） | スクリプト・テストなどの変更（PR も含む） | Python と JS のテスト |
 | `Check parts look`（`visual.yml`） | 共通部品の CSS・テンプレートなどの変更（PR も含む） | 変更の前後のスクリーンショットを比べ、変わっていれば警告と差分画像 |
 | `Set accent color`（`set-accent.yml`） | 手動 | アクセント色を固定して公開 |
 | `Check memo-kit`（`kit-sync.yml`） | 週 1 回（テンプレートから作ったリポジトリだけ） | memo-kit との違いを知らせる |
 
-最初に Settings → Actions → General → Workflow permissions を「Read and write permissions」にしておきます（[README](README.md#5-github-の設定)）。
+最初に Settings → Pages → Source を「GitHub Actions」にしておきます（[README](README.md#5-github-の設定)）。リポジトリに書き込むのは `Set accent color` のコミットだけで、ワークフローの中でそのジョブにだけ書き込み権限を付けています。
 
 外から入れるもの（Actions と npm のパッケージ）は、乗っ取られた版が入ったときの被害を小さくするため、次のようにしています。
 
 - Actions はコミットの SHA で固定する（タグの付け替えで中身が変わらないように）。
 - npm のパッケージは `package-lock.json` で版と中身を固定し、`npm ci --ignore-scripts` でインストール時のスクリプトを動かさない。
-- `Deploy MEMO` で動かす外のパッケージは Pagefind だけ（`--omit=dev`）。checkout は認証情報を残さず（`persist-credentials: false`）、トークンは dist ブランチに push するステップにだけ渡す。
+- `Deploy MEMO` は 2 つのジョブに分け、どちらもリポジトリへの書き込み権限を持たない。build（外のパッケージは Pagefind だけ。`--omit=dev`）は読み取りだけ、deploy は Pages への公開（`pages: write`・`id-token: write`）だけで、外のパッケージも原本のコードも動かさない。乗っ取られた版が入っても、原本は書き換えられない。
 - Renovate は、npm のパッケージと Actions の新しい版を公開から 3 日たつまで PR にしない（`renovate.json`。脆弱性の修正は待たない）。
 
 ## コードの構成とテスト

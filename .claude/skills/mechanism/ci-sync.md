@@ -5,9 +5,12 @@
 **`deploy.yml`（Deploy MEMO）**
 - 起動: デフォルトブランチへの push（`src/`・`scripts/`・`memo.config.json`・このワークフローの変更）、手動、`set-accent.yml` からの呼び出し。ブランチ名はワークフローに書かない。
 - 起動の対象には `package.json`・`package-lock.json`（Pagefind の版）も入る。
-- 手順: 履歴ごと checkout（日付の推定に使う。`persist-credentials: false`）→ `memo.py config branch` がデフォルトブランチと同じか確かめる（違えば止める）→ Python のテスト（`MEMO_SKIP_REPO_TESTS` 付き。本物のメモの状態では止めない）→ 全メモを lint（報告のみ。メモ 0 本なら省略）→ `build --strict` → 本文検索の索引（`npm ci --omit=dev --ignore-scripts` → `npm run search-index`。`dist/pagefind/` に書く）。
-- コミット: dist ブランチ（`config deploy_branch`）を `dist/` の中身で丸ごと置き換え、変わっていれば `Deploy <元のコミット>` で push。ブランチが無ければ orphan で作る。原本のブランチには何もコミットしない。トークンはこのステップの env にだけ渡し、dist ブランチを読み書きする git コマンドに `http.extraheader` で付ける（`git_auth`）。
-- `concurrency` で同じブランチの実行は 1 本ずつ（途中で止めない）。dist ブランチに書くのはこれだけ。
+- 2 つのジョブに分ける。どちらもリポジトリへの書き込み権限を持たない（ワークフロー全体は `contents: read`）。
+  - `build`（読み取りだけ）: 履歴ごと checkout（日付の推定に使う。`persist-credentials: false`）→ `memo.py config branch` がデフォルトブランチと同じか確かめる（違えば止める）→ Python のテスト（`MEMO_SKIP_REPO_TESTS` 付き。本物のメモの状態では止めない）→ 全メモを lint（報告のみ。メモ 0 本なら省略）→ `build --strict` → 本文検索の索引（`npm ci --omit=dev --ignore-scripts` → `npm run search-index`。`dist/pagefind/` に書く）→ `actions/upload-pages-artifact` で `dist/` を渡す。
+  - `deploy`（`pages: write`・`id-token: write` だけ。環境 `github-pages`）: `actions/deploy-pages` で公開する。外のパッケージも原本のコードも動かさない。
+- 公開元は Settings → Pages → Source の「GitHub Actions」。公開用のブランチは作らない。独自ドメインは Settings → Pages → Custom domain が正で、`dist/CNAME` は公開には使われない（`src/CNAME` は公開 URL と OGP のため）。
+- `concurrency` で同じブランチの実行は 1 本ずつ（途中で止めない）。
+- `set-accent.yml` から呼ぶときは、呼ぶ側のジョブにも `pages: write`・`id-token: write` を付ける（呼ばれる側はそれより広い権限を持てない）。
 - JS のテストは流さない（`test.yml` が流す）。外のパッケージは Pagefind だけ。
 
 **外から入れるものの扱い（全ワークフロー）**
@@ -19,7 +22,7 @@
 
 **`visual.yml`（Check parts look）**: 共通部品の CSS・テンプレート・それを埋め込む `blocks.py`/`site.py`・`tests/visual/` の変更で動く。変更の前（PR の base か push 前のコミット）と後のテンプレートを同じマシンで `tests/visual/shoot.mjs` で撮り、`compare.mjs` で比べる。違いがあれば警告と差分画像（Artifacts の `parts-look`）を出すだけで失敗にはしない。画像をリポジトリに置かないのは、フォントの違いでマシンごとに少しずつ変わるため。読み取り権限だけ。手元では `MEMO_CHROME=<chrome のパス>` を付けても動く。
 
-**`set-accent.yml`（Set accent color）**: 手動で色を受け取る。3 ジョブに分ける: `render`（読み取り権限のみ・認証情報なし。`memo.py accent` と、`images` がオンなら `branding/render.py`）→ `commit`（書き込み権限。`Set accent color: …` で push）→ `deploy`（Deploy MEMO を呼ぶ。Actions の push では push トリガーが動かないため）。外のパッケージは `render` でだけ動かし、版は `branding/requirements.txt` と Ubuntu の版で固定。色が不正なら何もコミットせず止める。
+**`set-accent.yml`（Set accent color）**: 手動で色を受け取る。3 ジョブに分ける: `render`（読み取り権限のみ・認証情報なし。`memo.py accent` と、`images` がオンなら `branding/render.py`）→ `commit`（書き込み権限。`Set accent color: …` で push）→ `deploy`（Deploy MEMO を呼ぶ。Actions の push では push トリガーが動かないため。権限は `pages: write`・`id-token: write`）。外のパッケージは `render` でだけ動かし、版は `branding/requirements.txt` と Ubuntu の版で固定。色が不正なら何もコミットせず止める。
 
 **`kit-sync.yml`（Check memo-kit）**: テンプレートから作ったリポジトリで週 1 回 `sync --check`。違いがあれば失敗にして注釈を出す。何も書き換えない。memo-kit 自身では動かない。memo-kit の場所はリポジトリ変数 `MEMO_KIT_REPOSITORY` で変えられる。
 

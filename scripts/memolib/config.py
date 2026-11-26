@@ -2,7 +2,7 @@
 
 置き場所（src/ やテンプレートの場所）を知っているのはこのモジュールだけ。
 src/ は原本（手で書く HTML と共通ファイル）だけを置く場所で、build は src/ を読むだけで書き換えない。
-build の出力（公開するサイト一式）は dist/ に書き出す（.gitignore 済み。Actions が dist ブランチにデプロイする）。
+build の出力（公開するサイト一式）は dist/ に書き出す（.gitignore 済み。Actions が GitHub Pages に公開する）。
 サイトごとに変わる値（サイト名・リポジトリ・ブランチ・タイムゾーンなど）は
 リポジトリ直下の memo.config.json に書き、ここで読み込む。コードやスキルに直接書かない。
 """
@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent  # scripts/memolib/ の 2 つ上
 CONFIG_FILE = ROOT / "memo.config.json"
 SRC = ROOT / "src"  # 原本の置き場所（build は読むだけ。単体で開いて見るものではない）
-DIST = ROOT / "dist"  # build の出力。公開するサイト一式（GitHub Pages は dist ブランチから公開）
+DIST = ROOT / "dist"  # build の出力。公開するサイト一式（Actions がこの中身を GitHub Pages に公開する）
 INDEX = SRC / "index.html"
 QUIZ_PAGE = SRC / "quiz.html"  # 全メモの問題から 10 問解くページ
 SETTINGS_PAGE = SRC / "settings.html"  # 管理者がアクセント色を試して、固定する手順へ進むページ
@@ -37,7 +37,6 @@ DEFAULTS: dict = {
     "llms_description": "",       # llms.txt の冒頭の説明
     "repository": "",             # GitHub の owner/name。公開 URL の既定値とリンクに使う
     "branch": "main",             # push 先のブランチ（スキルは `memo.py config branch` で読む）
-    "deploy_branch": "dist",      # build の出力（dist/）をデプロイするブランチ。GitHub Pages の公開元にする
     "utc_offset_hours": 0,        # 「今日」を決めるタイムゾーン（日本なら 9）
     "branding": {},               # アクセント色と、アイコン・OGP 画像の文字・色。項目は BRANDING_DEFAULTS
     "quiz": True,                 # 確認クイズを使うか。false なら quiz.html・quizzes.json・各メモのクイズ表示・トップのランダムクイズを作らない
@@ -61,10 +60,15 @@ ICON_STYLES = ("mark", "lines")
 HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$")
 
 
+# 前は使っていた項目と、使わなくなった理由（書いてあれば消すよう案内して止める）
+OBSOLETE_KEYS = {
+    "deploy_branch": "公開は GitHub Pages の公式 Action で行い、公開用のブランチは作らなくなりました",
+}
+
 # 文字列の項目と、空を許さないもの
-STRING_KEYS = ("site_name", "description", "llms_description", "repository", "branch", "deploy_branch")
+STRING_KEYS = ("site_name", "description", "llms_description", "repository", "branch")
 BOOL_KEYS = ("quiz", "roadmap", "strict_parts")
-REQUIRED_STRINGS = ("site_name", "branch", "deploy_branch")
+REQUIRED_STRINGS = ("site_name", "branch")
 BRANDING_STRING_KEYS = ("title", "tagline", "url", "mark", "icon", "accent", "accent_light", "theme")
 
 
@@ -92,6 +96,9 @@ def load_config(path: Path = CONFIG_FILE) -> dict:
                  "カンマの過不足・閉じ括弧・\"\" の囲み忘れがないか確認してください")
     if not isinstance(data, dict):
         fail("全体を { ... }（オブジェクト）で書いてください")
+    for key, why in OBSOLETE_KEYS.items():
+        if key in data:
+            fail(f"{key} はもう使いません（{why}）。{name} から消してください")
     unknown = sorted(set(data) - set(DEFAULTS))
     if unknown:
         fail(f"知らない項目があります: {', '.join(unknown)}（使える項目: {', '.join(DEFAULTS)}）")
@@ -104,11 +111,8 @@ def load_config(path: Path = CONFIG_FILE) -> dict:
     for key in REQUIRED_STRINGS:
         if key in data and not data[key].strip():
             fail(f"{key} を空にはできません（書かなければ既定値 {DEFAULTS[key]!r} になります）")
-    for key in ("branch", "deploy_branch"):
-        if key in data and re.search(r"\s", data[key]):
-            fail(f"{key} に空白は使えません: {data[key]!r}")
-    if data.get("deploy_branch", DEFAULTS["deploy_branch"]) == data.get("branch", DEFAULTS["branch"]):
-        fail("deploy_branch は branch と別のブランチにしてください（原本と build の出力を分けるため）")
+    if "branch" in data and re.search(r"\s", data["branch"]):
+        fail(f"branch に空白は使えません: {data['branch']!r}")
     if "utc_offset_hours" in data:
         tz = data["utc_offset_hours"]
         if isinstance(tz, bool) or not isinstance(tz, (int, float)):

@@ -21,7 +21,7 @@ MEMO / NAME は「docker」「docker.html」「src/docker.html」のどれでも
 サイト名・リポジトリ・ブランチ・タイムゾーンなど、サイトごとの値はリポジトリ直下の memo.config.json に書く。
 
 メモ = src/ 直下の *.html（index.html・quiz.html・settings.html・roadmap.html 以外）。src/ は原本だけを置く場所で、
-build は src/ を読むだけで書き換えない。公開するのは build が書き出す dist/（Actions が dist ブランチにデプロイする）。
+build は src/ を読むだけで書き換えない。公開するのは build が書き出す dist/（Actions が GitHub Pages に公開する）。
 一覧情報は各メモの <head> 内の次のタグから読み取る:
   <title>                         タイトル（memo:title があればそちら優先）
   <meta name="description">       説明

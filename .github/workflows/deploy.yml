@@ -1,8 +1,11 @@
 name: Deploy MEMO
 
 # 原本（src/・scripts/・memo.config.json）が push されたら、build で公開用のサイト一式を dist/ に書き出し、
-# その中身をそのまま dist ブランチ（memo.config.json の deploy_branch）にコミットする。GitHub Pages はそのブランチから公開する。
-# 原本のブランチ（main など）には何もコミットしない（自動生成ブロックや一覧データは原本に入らない）。
+# GitHub Pages の公式 Action（upload-pages-artifact・deploy-pages）でそのまま公開する。
+# リポジトリには何も書き込まない（原本のブランチにも、ほかのブランチにもコミットしない）。
+# 使う権限は 2 つのジョブで分ける: build は読み取りだけ、deploy は Pages への公開（pages: write・id-token: write）だけ。
+# どちらもリポジトリへの書き込み権限（contents: write）を持たないので、外のパッケージが乗っ取られても原本は書き換えられない。
+# 公開元の設定: Settings → Pages → Source を「GitHub Actions」にする。
 # GitHub の画面から HTML を直接アップロードしても、ここで一覧に載って公開される。
 # 動くのはデフォルトブランチへの push だけ（ブランチ名は書かない。フォークしても main / master どちらでも動く）。
 on:
@@ -18,7 +21,7 @@ on:
   workflow_call: # Set accent color が設定を変えたあとに呼ぶ（Actions からの push では push のワークフローが動かないため）
 
 permissions:
-  contents: write
+  contents: read
 
 # 続けて push されたときに 2 つのデプロイが同時に走らないよう、1 本ずつ順番に動かす（途中で止めない）
 concurrency:
@@ -26,7 +29,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     steps:
@@ -35,8 +38,7 @@ jobs:
           # push なら push されたコミット、それ以外（手動・Set accent color から）はデフォルトブランチの最新
           ref: ${{ github.event_name == 'push' && github.sha || github.event.repository.default_branch }}
           fetch-depth: 0 # memo:date がないメモの日付を git 履歴から推定するため
-          # 認証情報を .git/config に残さない（下の Pagefind などのステップから読めないように）。push するステップでだけ渡す
-          persist-credentials: false
+          persist-credentials: false # 認証情報を .git/config に残さない（読み取りだけのトークンでも、後のステップに渡さない）
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -54,7 +56,7 @@ jobs:
             exit 1
           fi
 
-      # テストに落ちたら公開しない（壊れた memo.py で dist ブランチを上書きしないため）。
+      # テストに落ちたら公開しない（壊れた memo.py で公開中のサイトを上書きしないため）。
       # JS のテスト（npm）はここでは動かさない（test.yml が流す）。
       # 本物のメモの検査（全メモの lint など）は飛ばす。メモの指摘は下の lint の注釈と build --strict に任せる
       - name: Test
@@ -75,7 +77,7 @@ jobs:
 
       # 一覧の本文検索の索引（dist/pagefind/）。外のパッケージはこれだけで、次の対策をしている:
       # 版と中身は package-lock.json で固定（npm ci が integrity を照合）・インストール時のスクリプトは動かさない（--ignore-scripts）・
-      # 入れるのは dependencies の pagefind だけ（--omit=dev）・トークンはこのステップに渡さない（checkout の persist-credentials: false）・
+      # 入れるのは dependencies の pagefind だけ（--omit=dev）・このジョブは読み取りの権限しか持たない・
       # 新しい版は公開から 3 日たってから Renovate が PR を作る（renovate.json）
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -86,34 +88,20 @@ jobs:
           npm ci --omit=dev --ignore-scripts --no-audit --no-fund
           npm run search-index
 
-      - name: Commit dist/ to the deploy branch
-        # dist/ の中身でデプロイ用ブランチを丸ごと置き換えてコミットする（履歴は残すので、生成物の変化も追える）。
-        # ブランチがまだなければ、履歴のない（orphan）ブランチとして作る。
-        env:
-          TOKEN: ${{ github.token }}
-        run: |
-          deploy_branch="$(python3 scripts/memo.py config deploy_branch)"
-          # checkout で認証情報を残していないので、dist ブランチを読み書きするコマンドにだけトークンを付ける
-          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "${TOKEN}" | base64 -w0)"
-          git_auth() { git -c "http.https://github.com/.extraheader=${auth}" "$@"; }
-          source_sha="$(git rev-parse --short HEAD)"
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          out="${RUNNER_TEMP}/deploy"
-          if git_auth ls-remote --exit-code --heads origin "${deploy_branch}" >/dev/null; then
-            git_auth fetch -q --depth 1 origin "${deploy_branch}"
-            git worktree add -q --detach "${out}" FETCH_HEAD
-          else
-            git worktree add -q --detach "${out}"
-            git -C "${out}" checkout -q --orphan "${deploy_branch}"
-          fi
-          git -C "${out}" rm -rqf --ignore-unmatch .
-          cp -a dist/. "${out}/"
-          git -C "${out}" add -A
-          if git -C "${out}" diff --cached --quiet; then
-            echo "公開中のサイトは最新です"
-            exit 0
-          fi
-          git -C "${out}" commit -q -m "Deploy ${source_sha}"
-          git_auth -C "${out}" push -q origin "HEAD:refs/heads/${deploy_branch}"
-          echo "### ${deploy_branch} ブランチにデプロイしました（元のコミット: ${source_sha}）" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: dist
+
+  # build が作った dist/ を Pages に公開する。外のパッケージも原本のコードも動かさない
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

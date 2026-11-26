@@ -10,7 +10,7 @@ Claude に作ってもらった図解つきの解説ページ（HTML）を、Git
 - Atom フィード: `feed.xml`（`build` が作る。新しいメモをフィードリーダーで追える。トップページのフッターにリンク）
 - AI 向けの Markdown 版: `md/` と `llms.txt`（`build` が作る。公開 URL を渡せば、リポジトリを繋いでいない会話でも Claude が過去のメモを読める）
 - 設定: `memo.config.json`（サイト名・説明・リポジトリ・ブランチ・タイムゾーン・アイコンと OGP 画像。コードやスキルには直接書かない）
-- 原本と公開物: `src/` には手で書く原本だけを置きます（単体で開いて見るものではありません）。`memo.py build` が自動生成ブロックや一覧データを入れた公開用のサイト一式を `dist/` に書き出し、GitHub Actions がその中身を **dist ブランチ**にコミットして GitHub Pages で公開します。生成物はデフォルトブランチに入りません
+- 原本と公開物: `src/` には手で書く原本だけを置きます（単体で開いて見るものではありません）。`memo.py build` が自動生成ブロックや一覧データを入れた公開用のサイト一式を `dist/` に書き出し、GitHub Actions がその中身を GitHub Pages の公式 Action でそのまま公開します（公開用のブランチは作りません）。生成物はデフォルトブランチに入りません
 - 公開 URL: `src/CNAME` があればその独自ドメイン、なければ `https://<owner>.github.io/<name>/`（`python3 scripts/memo.py url` で確認できます。OGP の URL もここから自動で決まります）
 
 **日本語のサイト向けです。** ページの `lang="ja"`、「一覧に戻る」などの表示、`memo.py` のメッセージ、スキル（日本語で書く規約）、フォント（Noto Sans JP）は日本語前提です。
@@ -46,7 +46,6 @@ rm -rf dist                                                                     
   "llms_description": "Claude に作ってもらった解説ページの集まり。各リンク先は本文を Markdown にしたもので、元のページへの URL も含む。",
   "repository": "alice/my-notes",
   "branch": "main",
-  "deploy_branch": "dist",
   "utc_offset_hours": 9,
   "quiz": true,
   "roadmap": false,
@@ -57,7 +56,6 @@ rm -rf dist                                                                     
 
 - `repository` は自分の `owner/name`。テンプレートの値（`repo/sample`）のままだと `build` が警告します。
 - `branch` はリポジトリのデフォルトブランチ（原本を置く。スキルの push 先）。
-- `deploy_branch` は `build` の出力を置く公開用のブランチ（既定 `dist`。Actions が作る）。`branch` と同じにはできません。
 - `quiz` は確認クイズを使うか（既定 `true`）。`false` にすると、クイズのページ（`quiz.html`）・全問題のデータ・各メモのクイズ表示・トップページのランダムクイズを作らず、スキルも新しいメモにクイズを書きません。
 - `roadmap` はロードマップ（`src/roadmap.html`）を使うか（既定 `false`）。`true` にすると、`build` がロードマップのページを `dist/` に出し、各ページ上部のナビとトップページのフッターに「ロードマップ」のリンクを出します。`false` ならページもリンクも作りません（原本の `src/roadmap.html` は残るので、`true` に戻して `build` すれば元どおり出ます）。項目は `src/roadmap.html` の `ROADMAP` に書き、メモを公開すると自動でチェックが付きます（項目決めは `memo-roadmap` スキル）。詳しくは [memo-detail.md の「ロードマップ（オプション）」](memo-detail.md#ロードマップオプション)。
 - `strict_parts` は共通部品（関連メモ・参考・補足の文・凡例・表の箱）の形を lint で強制するか（既定 `false`）。書き方をそろえたいサイトだけ `true` にします。
@@ -79,10 +77,11 @@ python3 -B -m unittest discover -s tests   # テスト
 
 ### 5. GitHub の設定
 
-- **Actions の書き込み権限**: Settings → Actions → General → Workflow permissions を「Read and write permissions」にする（`Deploy MEMO` が dist ブランチにコミット・push するため）。
-- **最初のデプロイ**: 書き込み権限を付けたあとに push する（または Actions の画面から `Deploy MEMO` を「Run workflow」で実行する）と、dist ブランチができます。
-- **Pages**: dist ブランチができたら、Settings → Pages → Source を「Deploy from a branch」、ブランチを `dist`、フォルダを `/ (root)` にする。
-- 独自ドメインを使うなら `src/CNAME` にドメインを 1 行書いて push し、DNS を設定する（テンプレートには `src/CNAME` を入れていません。公開 URL の決まり方は冒頭の一覧）。
+- **Pages**: Settings → Pages → Source を「GitHub Actions」にする。
+- **最初のデプロイ**: そのあとに push する（または Actions の画面から `Deploy MEMO` を「Run workflow」で実行する）と公開されます。
+- **Actions の権限**: Settings → Actions → General → Workflow permissions は既定の「Read repository contents」のままでかまいません。書き込みが要るジョブ（`Set accent color` のコミット、Pages への公開）は、ワークフローの中でそのジョブにだけ権限を付けています。
+- 独自ドメインを使うなら、Settings → Pages → Custom domain にドメインを入れて DNS を設定し、同じドメインを `src/CNAME` に 1 行書いて push する（`src/CNAME` は公開 URL と OGP の URL を決めるために使います。テンプレートには入れていません。公開 URL の決まり方は冒頭の一覧）。
+- 前に dist ブランチから公開していたリポジトリは、Source を「GitHub Actions」に切り替えれば移れます。`memo.config.json` の `deploy_branch` は消し、要らなくなった dist ブランチは消してかまいません。
 
 ### 6. Claude から使う
 
@@ -106,7 +105,7 @@ python3 -B -m unittest discover -s tests   # テスト
 | --- | --- |
 | 仕組みのページの JS のテスト（`npm test`）と、本文検索の索引を手元で作るとき（`npm run search-index`）。どちらも仕組みを直すときだけ（公開の索引は GitHub Actions が作る） | Node.js 22.12 以上（22・24・26 などの偶数の版） |
 | `scripts/memo.py`（登録・点検・生成）とテスト | Python 3.8 以上（標準ライブラリのみ。テストは 3.11・3.12 で確認、GitHub Actions は 3.12）、git |
-| 公開 | GitHub Pages（dist ブランチを公開）、GitHub Actions（build・デプロイとテスト） |
+| 公開 | GitHub Pages（Source は GitHub Actions）、GitHub Actions（build・デプロイとテスト） |
 | ページの表示 | 閲覧者のブラウザが Google Fonts（`fonts.googleapis.com` の Noto Sans JP・JetBrains Mono）を読み込みます。読めないときはシステムのフォントで表示されます。メモによっては cdnjs のライブラリを使います（[memo-style](.claude/skills/memo-style/SKILL.md)） |
 | `branding/render.py`（アイコン・OGP 画像の生成。設定を変えたときだけ） | `pip install -r branding/requirements.txt`（版を固定）と `python3 -m playwright install chromium`、フォント Noto Sans CJK JP・DejaVu Sans Mono（Ubuntu なら `apt install fonts-noto-cjk fonts-dejavu-core`）。Actions では、設定ページから色を固定する `Set accent color` だけがこれを入れて動かす。それ以外は手元で実行してコミットする |
 
@@ -115,7 +114,7 @@ python3 -B -m unittest discover -s tests   # テスト
 `.claude/skills/` のスキルが、メモの作成・登録・ファクトチェック・参照・ロードマップ・仕組みの修正を受け持ちます。「〜の図解ページを作って」「この HTML をメモに入れて」「さっきの説明をメモにして」のように頼めば、Claude が合うスキルを選びます。どの依頼でどのスキルを使うかは [`.claude/skills/ROUTING.md`](.claude/skills/ROUTING.md) にあります。
 
 - **Claude Code や、リポジトリを繋いだ claude.ai の会話**: 新しい会話では最初に「`<owner>/<name>` リポジトリで作業して」（自分のリポジトリ名）と伝えるとスキルが効きます。
-- **claude.ai のアプリ**: `memo.py build` が `memo.config.json` のリポジトリ名とブランチから入口スキル `dist/entry-skill/SKILL.md` を作ります（dist ブランチと公開サイトの `/entry-skill/SKILL.md` にもあります）。これをアプリ側のスキルとして登録します。入口スキルは「このリポジトリを取ってきて、ここのスキルに従う」だけのもので、手順やデザイン規約はアプリ側には書きません。設定を変えたら貼り直してください。
+- **claude.ai のアプリ**: `memo.py build` が `memo.config.json` のリポジトリ名とブランチから入口スキル `dist/entry-skill/SKILL.md` を作ります（公開サイトの `/entry-skill/SKILL.md` にもあります）。これをアプリ側のスキルとして登録します。入口スキルは「このリポジトリを取ってきて、ここのスキルに従う」だけのもので、手順やデザイン規約はアプリ側には書きません。設定を変えたら貼り直してください。
 
 ## 仕組みと memo.py
 

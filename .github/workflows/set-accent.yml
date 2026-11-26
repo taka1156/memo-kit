@@ -132,4 +132,6 @@ jobs:
     needs: commit
     uses: ./.github/workflows/deploy.yml
     permissions:
-      contents: write
+      contents: read
+      pages: write
+      id-token: write

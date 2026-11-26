@@ -93,7 +93,7 @@ python3 scripts/memo.py build       # 公開用のサイト一式を dist/ に�
 python3 scripts/memo.py list
 ```
 
-一覧・問題データ（`memos.json`・`quizzes.json`）、Markdown 版、各ページの自動生成ブロック（`<!-- memo:head -->`・`<!-- memo:quiz -->`）は build が `dist/` にだけ作る。`src/` には入らないし、入れない（`dist/` は `.gitignore` 済みでコミットされない）。公開は push 後に GitHub Actions（Deploy MEMO）が `dist/` の中身を dist ブランチにコミットして行う。
+一覧・問題データ（`memos.json`・`quizzes.json`）、Markdown 版、各ページの自動生成ブロック（`<!-- memo:head -->`・`<!-- memo:quiz -->`）は build が `dist/` にだけ作る。`src/` には入らないし、入れない（`dist/` は `.gitignore` 済みでコミットされない）。公開は push 後に GitHub Actions（Deploy MEMO）が `dist/` の中身を GitHub Pages に公開して行う。
 
 **表示と色の確認**: 新しいメモや、図・表・CSS を変えたメモは、ここで memo-check を最後まで読み、その手順で SP・PC × ライト・ダークの表示と色を確かめて直す（`[要対応]` が 0 件になるまで。直したら lint → build をやり直す）。memo-style で作った直後に済ませていて、その後に見た目を変えていなければ省いてよい。
 

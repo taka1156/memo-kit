@@ -18,7 +18,7 @@
 
 - 原本は `src/` だけ（メモ本文・`<head>` のメタ情報・問題データ）。それ以外は生成物で、すべて `dist/`（`.gitignore` 済み）に書く。生成物は手で直さない。
 - `build` は `src/` を書き換えない。`lint`・`meta`・`new`・`add` も `src/` に自動生成ブロックを入れない。
-- 公開されるのは `dist/` だけ（Actions が dist ブランチにコミットし、Pages の公開元にする）。原本のブランチに生成物や Actions のコミットを入れない。
+- 公開されるのは `dist/` だけ（Actions が GitHub Pages の公式 Action で公開する。公開用のブランチは作らない）。原本のブランチに生成物や Actions のコミットを入れない。
 - 同じものを 2 か所に書かない。クイズの CSS / JS は `src/assets/memo-quiz.*`、仕組みのページの共通処理は `src/assets/memo-site.js` に 1 つだけ。
 - サイトごとの値（サイト名・リポジトリ・ブランチ・タイムゾーン・ドメイン・色）は `memo.config.json` だけに書く。スキルは `memo.py config KEY` で読む。
 - パスを知っているのは `memolib/config.py` だけ。スキルは `memo.py path NAME` で引く。

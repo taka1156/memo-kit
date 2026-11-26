@@ -9,8 +9,8 @@ src/ のファイルのコピーに、次の生成物を加えたものになる
 - feed.xml（新着メモの Atom フィード。公開 URL が決まるときだけ）
 - entry-skill/SKILL.md（アプリ側に置く入口スキル）
 
-dist/ は .gitignore 済み。Actions がこの中身をそのまま dist ブランチ（memo.config.json の deploy_branch）に
-コミットし、GitHub Pages はそのブランチから公開する。
+dist/ は .gitignore 済み。Actions（deploy.yml）がこの中身をそのまま GitHub Pages の公式 Action で公開する
+（ブランチにはコミットしない）。
 """
 from __future__ import annotations
 

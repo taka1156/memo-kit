@@ -116,7 +116,7 @@ GitHub Actions は Python 3.12 で動く。手元に `python3.12` があれば�
 ### 5. コミット
 
 - コミットするのはスクリプトと原本だけ。生成物（`dist/`）はコミットしない。
-- push すると `Test memo.py`（テスト）と `Deploy MEMO`（build して dist ブランチにデプロイ）の 2 つのワークフローが動く。
+- push すると `Test memo.py`（テスト）と `Deploy MEMO`（build して GitHub Pages に公開）の 2 つのワークフローが動く。
 
 ### 6. memo-kit とテンプレートから作ったリポジトリをそろえる
 

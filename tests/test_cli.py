@@ -714,15 +714,23 @@ class SiteConfigTest(unittest.TestCase):
                 self.assertIn("警告", p.stderr)
                 self.assertIn("repository", p.stderr)
 
-    def test_deploy_branch_setting(self):
+    def test_branch_with_space_is_an_error(self):
         with Workspace() as ws:
-            self.assertEqual(ws.run("config", "deploy_branch").stdout.strip(), "dist")
-            for value, msg in (("main", "別のブランチ"), ("a b", "空白")):
-                cfg = {**self.config(ws), "deploy_branch": value}
-                (ws.root / "memo.config.json").write_text(json.dumps(cfg), encoding="utf-8")
-                p = ws.run("config", check=False)
-                self.assertNotEqual(p.returncode, 0, value)
-                self.assertIn(msg, p.stderr, value)
+            cfg = {**self.config(ws), "branch": "a b"}
+            (ws.root / "memo.config.json").write_text(json.dumps(cfg), encoding="utf-8")
+            p = ws.run("config", check=False)
+            self.assertNotEqual(p.returncode, 0)
+            self.assertIn("空白", p.stderr)
+
+    def test_obsolete_deploy_branch_tells_how_to_fix(self):
+        # 公開用のブランチは使わなくなった。前の設定のままなら、消すよう案内して止める
+        with Workspace() as ws:
+            cfg = {**self.config(ws), "deploy_branch": "dist"}
+            (ws.root / "memo.config.json").write_text(json.dumps(cfg), encoding="utf-8")
+            p = ws.run("config", check=False)
+            self.assertNotEqual(p.returncode, 0)
+            self.assertIn("deploy_branch はもう使いません", p.stderr)
+            self.assertIn("消してください", p.stderr)
 
     def test_unknown_config_key_is_an_error(self):
         with Workspace() as ws:
