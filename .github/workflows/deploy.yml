@@ -81,7 +81,7 @@ jobs:
       # 新しい版は公開から 3 日たってから Renovate が PR を作る（renovate.json）
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24"
+          node-version: "26"
 
       - name: Search index
         run: |
